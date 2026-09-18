@@ -42,3 +42,4 @@ next-env.d.ts
 
 # local (ferramentas/preview, caminhos da máquina)
 /.claude/
+!.env.local.example
