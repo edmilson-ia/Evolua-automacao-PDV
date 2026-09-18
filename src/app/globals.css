@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* Cor da marca do cliente (white-label): definida no <html> a partir do branding */
+  --color-brand: var(--brand, #2563eb);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Impressão: imprime apenas o recibo */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .recibo-print,
+  .recibo-print * {
+    visibility: visible;
+  }
+  .recibo-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+  }
+}
