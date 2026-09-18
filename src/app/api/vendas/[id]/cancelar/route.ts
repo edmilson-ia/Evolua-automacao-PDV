@@ -16,6 +16,8 @@ const schema = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const negado = await exigirApi(["admin"]);
   if (negado) return negado;
+  const sessao = await getSessao();
+  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) {
@@ -30,7 +32,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     p_tenant_id: getTenantId(),
     p_venda_id: id,
     p_motivo: parsed.data.motivo,
-    p_por: (await getSessao())?.nome ?? null,
+    p_operador_id: sessao.id,
+    p_operador_nome: sessao.nome,
   });
 
   if (error) {

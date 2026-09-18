@@ -29,7 +29,7 @@ const dataSP = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { time
 const horaSP = (iso: string) =>
   Number(new Date(iso).toLocaleString("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false }));
 
-type VendaRow = { total: number; forma_pagamento: FormaPagamento; criado_em: string };
+type VendaRow = { total: number; forma_pagamento: FormaPagamento; criado_em: string; operador_id: string | null; operador_nome: string | null };
 type ItemRow = { quantidade: number; subtotal: number; produtos: { nome: string; unidade: string } | null };
 type ProdutoRow = { nome: string; quantidade: number; estoque_minimo: number; preco_custo: number; preco_venda: number; unidade: string };
 
@@ -45,7 +45,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const db = createServerClient();
   const tenant = getTenantId();
   const [vendasRes, itensRes, produtosRes] = await Promise.all([
-    db.from("vendas").select("total, forma_pagamento, criado_em").eq("tenant_id", tenant).eq("status", "concluida").gte("criado_em", inicio).lt("criado_em", fim),
+    db.from("vendas").select("total, forma_pagamento, criado_em, operador_id, operador_nome").eq("tenant_id", tenant).eq("status", "concluida").gte("criado_em", inicio).lt("criado_em", fim),
     db
       .from("itens_venda")
       .select("quantidade, subtotal, produtos(nome, unidade), vendas!inner(criado_em, status, tenant_id)")
@@ -64,6 +64,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const bruto = vendas.reduce((s, v) => s + Number(v.total), 0);
   const liquido = vendas.reduce((s, v) => s + calcularLiquido(v.forma_pagamento, Number(v.total)).liquido, 0);
   const ticket = vendas.length ? bruto / vendas.length : 0;
+
+  // ---- vendas por operador (agrupa pelo id; o nome é o da hora da venda) ----
+  const porOperador = new Map<string, { nome: string; qtd: number; bruto: number; liquido: number }>();
+  vendas.forEach((v) => {
+    const chave = v.operador_id ?? "sem-operador";
+    const atual = porOperador.get(chave) ?? { nome: v.operador_nome ?? "Sem operador registrado", qtd: 0, bruto: 0, liquido: 0 };
+    atual.qtd += 1;
+    atual.bruto += Number(v.total);
+    atual.liquido += calcularLiquido(v.forma_pagamento, Number(v.total)).liquido;
+    porOperador.set(chave, atual);
+  });
+  const operadores = [...porOperador.entries()].sort(([, a], [, b]) => b.bruto - a.bruto);
 
   // ---- gráfico: por hora (hoje) ou por dia ----
   const baldes: { rotulo: string; valor: number }[] = [];
@@ -192,6 +204,34 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </ul>
         </section>
       </div>
+
+      {/* Vendas por operador */}
+      <section className={`${card} mb-4`}>
+        <h2 className="mb-3 font-semibold">Vendas por operador</h2>
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-gray-500">
+            <tr>
+              <th className="pb-2">Operador</th>
+              <th className="pb-2 text-right">Vendas</th>
+              <th className="pb-2 text-right">Bruto</th>
+              <th className="pb-2 text-right">Líquido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {operadores.map(([id, o]) => (
+              <tr key={id} className="border-t border-gray-100">
+                <td className="py-1.5 font-medium">{o.nome}</td>
+                <td className="py-1.5 text-right">{o.qtd}</td>
+                <td className="py-1.5 text-right">{brl(o.bruto)}</td>
+                <td className="py-1.5 text-right font-semibold text-emerald-700">{brl(o.liquido)}</td>
+              </tr>
+            ))}
+            {operadores.length === 0 && (
+              <tr><td colSpan={4} className="py-3 text-center text-gray-500">Sem vendas neste período.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
 
       {/* Margem de lucro */}
       <div className="mb-4 grid gap-4 lg:grid-cols-3">

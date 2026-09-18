@@ -17,6 +17,9 @@ export type Venda = {
   troco: number | null;
   status: string;
   criado_em: string;
+  /** Quem vendeu (nulo nas vendas anteriores à migration 0005). */
+  operador_id?: string | null;
+  operador_nome?: string | null;
   /** Preenchidos quando a venda é cancelada (migration 0004). */
   cancelada_em?: string | null;
   motivo_cancelamento?: string | null;

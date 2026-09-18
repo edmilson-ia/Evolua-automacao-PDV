@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirApi } from "@/lib/auth";
+import { exigirApi, getSessao } from "@/lib/auth";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTenantId } from "@/lib/tenant";
@@ -19,15 +19,20 @@ const SELECT_VENDA = "*, itens_venda(id, quantidade, preco_unitario, subtotal, p
 export async function GET(req: Request) {
   const negado = await exigirApi();
   if (negado) return negado;
+  const sessao = await getSessao();
+  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   const data = new URL(req.url).searchParams.get("data");
   const { inicio, fim } = dayRangeSP(data);
-  const { data: vendas, error } = await createServerClient()
+  let query = createServerClient()
     .from("vendas")
     .select(SELECT_VENDA)
     .eq("tenant_id", getTenantId())
     .gte("criado_em", inicio)
     .lt("criado_em", fim)
     .order("criado_em", { ascending: false });
+  // Operador (caixa) só enxerga as próprias vendas; o administrador vê todas
+  if (sessao.perfil === "operador") query = query.eq("operador_id", sessao.id);
+  const { data: vendas, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(vendas);
 }
@@ -35,6 +40,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const negado = await exigirApi();
   if (negado) return negado;
+  const sessao = await getSessao();
+  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   const parsed = vendaSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
@@ -48,6 +55,8 @@ export async function POST(req: Request) {
     p_forma_pagamento: v.forma_pagamento,
     p_desconto: v.desconto,
     p_valor_recebido: v.valor_recebido ?? null,
+    p_operador_id: sessao.id,
+    p_operador_nome: sessao.nome,
   });
   if (error) {
     // Erros de regra (estoque insuficiente etc.) vêm de raise exception (P0001)

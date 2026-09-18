@@ -8,7 +8,8 @@ export default function Recibo({ venda, nomeFantasia = "Evolua Automação" }: {
     <div className="recibo font-mono text-sm">
       <div className="text-center font-bold">{nomeFantasia}</div>
       <div className="text-center text-xs">Comprovante não fiscal</div>
-      <div className="text-center text-xs mb-2">{dataHoraBR(venda.criado_em)}</div>
+      <div className="text-center text-xs">{dataHoraBR(venda.criado_em)}</div>
+      {venda.operador_nome && <div className="text-center text-xs">Operador: {venda.operador_nome}</div>}
       <hr className="border-dashed my-2" />
       {venda.itens_venda.map((i) => (
         <div key={i.id} className="flex justify-between gap-2">

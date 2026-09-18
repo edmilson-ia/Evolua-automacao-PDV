@@ -13,6 +13,7 @@ type Mov = {
   quantidade: number;
   motivo: string | null;
   criado_em: string;
+  operador_nome: string | null;
   produtos: { nome: string; sku: string; unidade: string } | null;
 };
 
@@ -42,7 +43,7 @@ export default async function MovimentosPage({
     (() => {
       let q = db
         .from("movimentos_estoque")
-        .select("id, tipo, quantidade, motivo, criado_em, produtos(nome, sku, unidade)")
+        .select("id, tipo, quantidade, motivo, criado_em, operador_nome, produtos(nome, sku, unidade)")
         .eq("tenant_id", getTenantId())
         .order("criado_em", { ascending: false })
         .limit(150);
@@ -93,6 +94,7 @@ export default async function MovimentosPage({
               <th className="p-3">Tipo</th>
               <th className="p-3 text-right">Qtd</th>
               <th className="p-3">Motivo</th>
+              <th className="p-3">Por</th>
             </tr>
           </thead>
           <tbody>
@@ -110,11 +112,12 @@ export default async function MovimentosPage({
                     {Number(m.quantidade).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} {m.produtos?.unidade}
                   </td>
                   <td className="p-3 text-gray-600">{m.motivo ?? ""}</td>
+                  <td className="whitespace-nowrap p-3 text-gray-600">{m.operador_nome ?? "—"}</td>
                 </tr>
               );
             })}
             {lista.length === 0 && (
-              <tr><td colSpan={5} className="p-6 text-center text-gray-500">Nenhum movimento registrado.</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Nenhum movimento registrado.</td></tr>
             )}
           </tbody>
         </table>

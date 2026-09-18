@@ -21,13 +21,16 @@ export default async function HistoricoVendasPage({
   const { data } = await searchParams;
   const { dia, inicio, fim } = dayRangeSP(data);
 
-  const { data: vendas } = await createServerClient()
+  let query = createServerClient()
     .from("vendas")
     .select("*, itens_venda(id, quantidade, preco_unitario, subtotal, produtos(nome, unidade))")
     .eq("tenant_id", getTenantId())
     .gte("criado_em", inicio)
     .lt("criado_em", fim)
     .order("criado_em", { ascending: false });
+  // Operador (caixa) só enxerga as próprias vendas; o administrador vê todas
+  if (sessao.perfil === "operador") query = query.eq("operador_id", sessao.id);
+  const { data: vendas } = await query;
 
   const lista = (vendas ?? []) as unknown as Venda[];
   const concluidas = lista.filter((v) => v.status === "concluida");
@@ -48,7 +51,10 @@ export default async function HistoricoVendasPage({
   return (
     <main className="mx-auto max-w-4xl p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold">Vendas</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Vendas</h1>
+          {!podeCancelar && <p className="text-xs text-gray-500">Mostrando apenas as suas vendas</p>}
+        </div>
         <form className="flex items-center gap-2">
           <input type="date" name="data" defaultValue={dia} className="rounded-lg border border-gray-300 px-3 py-2" />
           <button className="rounded-lg bg-brand px-4 py-2 text-white">Filtrar</button>
@@ -98,7 +104,10 @@ export default async function HistoricoVendasPage({
             <li key={v.id} className={`rounded-lg border ${cancelada ? "border-red-200 bg-red-50/50" : "border-gray-200 bg-white"}`}>
               <details>
                 <summary className="flex cursor-pointer items-center justify-between gap-3 p-3">
-                  <span className="text-sm text-gray-600">{dataHoraBR(v.criado_em)}</span>
+                  <span className="text-sm text-gray-600">
+                    {dataHoraBR(v.criado_em)}
+                    <span className="block text-xs text-gray-500">{v.operador_nome ?? "Operador não registrado"}</span>
+                  </span>
                   <span className="text-sm">
                     {FORMA_LABEL[v.forma_pagamento]}
                     {cancelada && <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">CANCELADA</span>}

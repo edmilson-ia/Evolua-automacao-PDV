@@ -9,7 +9,7 @@ Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 �
 | Módulo | Recursos |
 |---|---|
 | **PDV** (`/pdv`) | Modo caixa em tela cheia; leitura por código de barras/SKU; `3x produto` para quantidade; atalhos F4/F6/F8/F9; pagamento em Dinheiro, Débito, Crédito e **PIX (QR Code)**; troco; desconto; recibo imprimível; aviso de estoque insuficiente |
-| **Vendas** (`/pdv/vendas`) | Histórico por dia, totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
+| **Vendas** (`/pdv/vendas`) | Histórico por dia com **quem vendeu** (o operador vê só as próprias vendas; o admin vê todas), totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
 | **Estoque** (`/estoque`) | CRUD de produtos com foto e categoria, alerta de estoque baixo, **movimentos** (entrada, saída e ajuste de inventário) |
 | **Dashboard** (`/dashboard`) | Faturamento bruto/líquido, ticket médio, gráfico por hora/dia, mais vendidos, valor em estoque, **margem de lucro** |
 | **Catálogo público** (`/catalogo`) | Vitrine por categoria com busca; não expõe custo nem estoque exato |
@@ -35,6 +35,7 @@ Rode, **nesta ordem**, os arquivos de `supabase/migrations/`:
 2. `0002_storage_produtos.sql` — bucket público de imagens
 3. `0003_formas_pagamento.sql` — débito e crédito
 4. `0004_cancelar_venda.sql` — cancelamento de venda
+5. `0005_quem_vendeu.sql` — operador em vendas e movimentos, tabela `auditoria`
 
 ### 2) Variáveis de ambiente (`.env.local`)
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirApi } from "@/lib/auth";
+import { exigirApi, getSessao } from "@/lib/auth";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTenantId } from "@/lib/tenant";
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const limite = Math.min(Number(sp.get("limit")) || 200, 500);
   let query = createServerClient()
     .from("movimentos_estoque")
-    .select("id, tipo, quantidade, motivo, criado_em, venda_id, produtos(nome, sku, unidade)")
+    .select("id, tipo, quantidade, motivo, criado_em, venda_id, operador_nome, produtos(nome, sku, unidade)")
     .eq("tenant_id", getTenantId())
     .order("criado_em", { ascending: false })
     .limit(limite);
@@ -36,6 +36,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const negado = await exigirApi(["admin"]);
   if (negado) return negado;
+  const sessao = await getSessao();
+  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   const parsed = movimentoSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
@@ -85,6 +87,8 @@ export async function POST(req: Request) {
     p_tipo: tipoReal,
     p_quantidade: qtdMov,
     p_motivo: motivo,
+    p_operador_id: sessao.id,
+    p_operador_nome: sessao.nome,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
