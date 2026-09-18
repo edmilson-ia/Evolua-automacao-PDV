@@ -20,7 +20,10 @@ npm run build && npm start   # produção (PWA/service worker só registram em p
 npx tsc --noEmit       # typecheck
 npm run lint           # eslint
 ```
-Não há suíte de testes: regras de segurança, dinheiro e estoque são provadas por **scripts de teste** (ver "Fluxo de trabalho").
+Não há suíte de testes: regras de segurança, dinheiro e estoque são provadas por **scripts** em `scripts/` (um por tarefa), com o servidor rodando:
+```bash
+node --env-file=.env.local scripts/test-quem-vendeu.mjs
+```
 
 ## Arquitetura
 ```
@@ -38,6 +41,7 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 - Sessão: cookie httpOnly com JWT HS256 (12 h), `SESSION_SECRET`. Perfis em `app_metadata.perfil`: `admin` | `operador`.
 - Login por **telefone** (`src/lib/telefone.ts`); o Supabase exige e-mail, então o usuário recebe e-mail interno `<dígitos>@tel.evolua.test` (nunca exibido).
 - Recuperação de senha: operador pede ao admin; admin usa `SETUP_CODE`.
+- Quem fez: `vendas` e `movimentos_estoque` guardam `operador_id` + `operador_nome` (cópia do nome na hora); cancelamentos e movimentos manuais também vão para `auditoria`. O operador vem SEMPRE da sessão, nunca do corpo da requisição. Operador só lista as próprias vendas.
 - Datas sempre em America/Sao_Paulo (`src/lib/format.ts`). Taxas de cartão em `src/lib/taxas.ts` (débito 2,0%, crédito 3,5%), calculadas na exibição.
 - PIX: QR estático (`src/lib/pix.ts`) com `PIX_KEY`/`PIX_CITY`; **não confirma pagamento**.
 

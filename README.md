@@ -11,7 +11,7 @@ Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 �
 | **PDV** (`/pdv`) | Modo caixa em tela cheia; leitura por código de barras/SKU; `3x produto` para quantidade; atalhos F4/F6/F8/F9; pagamento em Dinheiro, Débito, Crédito e **PIX (QR Code)**; troco; desconto; recibo imprimível; aviso de estoque insuficiente |
 | **Vendas** (`/pdv/vendas`) | Histórico por dia com **quem vendeu** (o operador vê só as próprias vendas; o admin vê todas), totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
 | **Estoque** (`/estoque`) | CRUD de produtos com foto e categoria, alerta de estoque baixo, **movimentos** (entrada, saída e ajuste de inventário) |
-| **Dashboard** (`/dashboard`) | Faturamento bruto/líquido, ticket médio, gráfico por hora/dia, mais vendidos, valor em estoque, **margem de lucro** |
+| **Dashboard** (`/dashboard`) | Faturamento bruto/líquido, ticket médio, gráfico por hora/dia, mais vendidos, valor em estoque, **margem de lucro**, **vendas por operador** |
 | **Catálogo público** (`/catalogo`) | Vitrine por categoria com busca; não expõe custo nem estoque exato |
 | **Marca** (`/configuracoes/branding`) | Nome, cor, logo e ícone do app por cliente |
 | **Usuários** (`/configuracoes/usuarios`) | Login por **telefone**; perfis **administrador** e **operador (caixa)** |
@@ -79,6 +79,14 @@ public/sw.js     service worker (PWA)
 supabase/migrations/   SQL do banco (aplicar em ordem)
 ```
 
+## Testes
+
+Scripts de teste (rodam contra o servidor local, criam só dados "TESTE" e apagam tudo por id no final):
+
+```bash
+node --env-file=.env.local scripts/test-quem-vendeu.mjs
+```
+
 ## Publicação e app no celular
 
 O PWA só instala em **HTTPS**. Depois de publicado (ex.: VPS com Node + proxy reverso + certificado), o app é instalado pelo navegador: Android/Chrome → "Instalar app"; iPhone/Safari → Compartilhar → "Adicionar à Tela de Início".
@@ -92,7 +100,6 @@ npm start
 
 - Publicação na VPS (domínio + HTTPS)
 - Pagamento integrado com confirmação automática (API do PicPay)
-- Registrar qual operador realizou cada venda
 
 ---
 
