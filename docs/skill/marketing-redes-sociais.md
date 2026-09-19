@@ -620,6 +620,6 @@ Continua o calendário acima (que termina na sexta 16/10). Todas as peças falam
 
 **Já preenchidos (2026-09-19):** WhatsApp `(21) 98658-0480` (link da bio: `https://wa.me/5521986580480?text=Quero%20testar%20gr%C3%A1tis%20o%20sistema`) · cidade São João de Meriti/RJ. **Preço: ainda NÃO definido** (não anunciar pago até definir).
 
-**Ainda pendentes:** `[USUÁRIO DO INSTAGRAM]` · `[PREÇO DO PLANO]` · `[O QUE ESTÁ INCLUSO]` · `[FIDELIDADE: sim/não]` · `[IMPLANTAÇÃO ASSISTIDA: sim/não/preço]` · `[HISTÓRIA DO EDMILSON]` · `[BENEFÍCIO DE INDICAÇÃO]` · `[BÔNUS OPCIONAL DO POST 20]` · `[TEMPO REAL DO POST 18]`.
+Instagram `@evolua_automacao`. **Ainda pendentes:** `[PREÇO DO PLANO]` · `[O QUE ESTÁ INCLUSO]` · `[FIDELIDADE: sim/não]` · `[IMPLANTAÇÃO ASSISTIDA: sim/não/preço]` · `[HISTÓRIA DO EDMILSON]` · `[BENEFÍCIO DE INDICAÇÃO]` · `[BÔNUS OPCIONAL DO POST 20]` · `[TEMPO REAL DO POST 18]`.
 
 **Para pedir mais conteúdo ao Claude:** "Use a skill evolua-automacao-pdv e o arquivo `marketing-redes-sociais.md`. Gere [N] novos posts para [nicho], com legenda, horário e roteiro, no mesmo padrão."
