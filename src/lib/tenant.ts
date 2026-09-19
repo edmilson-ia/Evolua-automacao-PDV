@@ -65,6 +65,12 @@ export async function getConfigPagamento(tenantId: string): Promise<ConfigPagame
   };
 }
 
+/** Largura do papel do cupom (impressora térmica): 58 ou 80 mm. */
+export async function getConfigImpressao(tenantId: string): Promise<{ largura_cupom: 58 | 80 }> {
+  const { data } = await createServerClient().from("tenants").select("largura_cupom").eq("id", tenantId).single();
+  return { largura_cupom: data?.largura_cupom === 58 ? 58 : 80 };
+}
+
 // Loja suspensa deve perder o acesso logo, mesmo com sessão (JWT) ainda válida: confere a cada
 // requisição, com cache curto para não pesar no banco.
 const CACHE_ATIVA_MS = 30_000;

@@ -1,3 +1,4 @@
+import { erroCodigoBarras, normalizarCodigoBarras } from "@/lib/codigoBarras";
 import { parseValor } from "@/lib/format";
 import type { Celula, DadosLinha, LinhaValidada, Mapeamento, Planilha } from "./tipos";
 
@@ -19,6 +20,7 @@ const MAX = { nome: 200, sku: 60, unidade: 10, descricao: 1000, categoria: 80 };
  */
 export function validarLinhas(planilha: Planilha, mapa: Mapeamento): LinhaValidada[] {
   const vistos = new Map<string, number>();
+  const codigosVistos = new Map<string, number>();
   const usadas = Object.values(mapa).filter((i): i is number => i != null);
   const linhasUteis = planilha.linhas.map((cels, idx) => ({ cels, idx })).filter(({ cels }) => usadas.some((i) => texto(cels[i]) !== ""));
   return linhasUteis.map(({ cels, idx }) => {
@@ -57,6 +59,20 @@ export function validarLinhas(planilha: Planilha, mapa: Mapeamento): LinhaValida
       const d = texto(pega("descricao"));
       if (d.length > MAX.descricao) erros.push(`Descrição com mais de ${MAX.descricao} caracteres`);
       else dados.descricao = d || null;
+    }
+
+    if (mapeado("codigo_barras")) {
+      const codigo = normalizarCodigoBarras(texto(pega("codigo_barras")));
+      const problema = codigo ? erroCodigoBarras(codigo) : null;
+      if (problema) erros.push(problema);
+      else if (codigo) {
+        const anterior = codigosVistos.get(codigo);
+        if (anterior) erros.push(`Código de barras repetido na planilha (já aparece na linha ${anterior})`);
+        else {
+          codigosVistos.set(codigo, linha);
+          dados.codigo_barras = codigo; // vazio: não altera
+        }
+      }
     }
 
     const numericos = [

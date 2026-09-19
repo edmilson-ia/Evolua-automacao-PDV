@@ -1,8 +1,15 @@
 import { z } from "zod";
+import { erroCodigoBarras, normalizarCodigoBarras } from "@/lib/codigoBarras";
 
 export const produtoSchema = z.object({
   nome: z.string().min(1, "Nome obrigatório"),
   sku: z.string().min(1, "SKU obrigatório"),
+  codigo_barras: z
+    .preprocess((v) => (typeof v === "string" ? normalizarCodigoBarras(v) : v), z.string().nullable().optional())
+    .superRefine((v, ctx) => {
+      const erro = v ? erroCodigoBarras(v) : null;
+      if (erro) ctx.addIssue({ code: "custom", message: erro });
+    }),
   categoria_id: z.string().uuid().nullable().optional(),
   descricao: z.string().nullable().optional(),
   imagem_url: z.string().url().nullable().optional(),

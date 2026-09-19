@@ -59,11 +59,24 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
   }
   const vistosNoArquivo = new Map<string, number>();
 
+  // Códigos de barras que já pertencem a produtos ativos da loja (o código é único por loja)
+  const donosDoCodigo = new Map<string, { id: string; nome: string; sku: string }>();
+  for (const bloco of em_blocos(boas.map((b) => b.dados.codigo_barras).filter((c): c is string => !!c), 100)) {
+    const { data, error } = await db.from("produtos").select("id, nome, sku, codigo_barras").eq("tenant_id", tenantId).eq("ativo", true).in("codigo_barras", bloco);
+    if (error) throw new Error(error.message);
+    for (const p of data ?? []) donosDoCodigo.set(p.codigo_barras, p);
+  }
+
   let semPreco = 0;
   const itens: LinhaPlano[] = [];
   for (const v of boas) {
     if (!v.dados.sku) v.dados.sku = `AUTO-${String(++proximoAuto).padStart(6, "0")}`;
     const ex = existentes.get(v.dados.sku);
+    const dono = v.dados.codigo_barras ? donosDoCodigo.get(v.dados.codigo_barras) : undefined;
+    if (dono && dono.id !== ex?.id) {
+      erros.push({ linha: v.linha, sku: v.dados.sku, erro: `Código de barras ${v.dados.codigo_barras} já usado por ${dono.nome.trim()} (SKU ${dono.sku})` });
+      continue;
+    }
     if (!ex) {
       // Produto novo: o que faltar assume um padrão (nome = SKU, preço de venda = 0)
       v.dados.nome ??= v.dados.sku;

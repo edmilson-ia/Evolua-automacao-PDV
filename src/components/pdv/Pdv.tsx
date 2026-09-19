@@ -21,6 +21,7 @@ import type { Produto } from "@/types/produto";
 import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento } from "@/types/venda";
 import type { Venda } from "@/types/venda";
 import BuscaCliente from "./BuscaCliente";
+import { tocarBeep } from "@/lib/beep";
 import Recibo from "./Recibo";
 
 type CartItem = { produto: Produto; quantidade: number };
@@ -31,6 +32,10 @@ type Aviso = {
   /** Sugestão de correção: adicionar o máximo disponível. */
   maximo?: { produto: Produto; qtd: number };
 };
+
+/** O termo é o SKU ou o código de barras (leitor USB) exato do produto. */
+const casaCodigo = (p: Produto, termo: string) =>
+  p.sku.toLowerCase() === termo.toLowerCase() || (!!p.codigo_barras && p.codigo_barras === termo);
 
 const fmtQtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const num = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -49,6 +54,7 @@ export default function Pdv({
   perfil,
   caixa,
   caixaObrigatorio,
+  larguraCupom,
 }: {
   branding: Branding;
   pix: PixConfig;
@@ -57,6 +63,7 @@ export default function Pdv({
   /** Caixa aberto de quem está logado (null = sem caixa aberto). */
   caixa: CaixaAberto | null;
   caixaObrigatorio: boolean;
+  larguraCupom: 58 | 80;
 }) {
   const router = useRouter();
   const cor = branding.cor_primaria ?? "#2563eb";
@@ -72,6 +79,9 @@ export default function Pdv({
   const [resultados, setResultados] = useState<Produto[]>([]);
   const [idx, setIdx] = useState(-1);
   const [aviso, setAviso] = useState<Aviso | null>(null);
+  useEffect(() => {
+    if (aviso?.tipo === "erro") tocarBeep("erro");
+  }, [aviso]);
 
   const [pagando, setPagando] = useState(false);
   const [forma, setForma] = useState<Forma>("dinheiro");
@@ -196,7 +206,7 @@ export default function Pdv({
   const qtdPedida = entrada.qtd ?? num(qtdCampo);
   const alvo =
     (idx >= 0 ? resultados[idx] : undefined) ??
-    resultados.find((p) => p.sku.toLowerCase() === entrada.termo.toLowerCase()) ??
+    resultados.find((p) => casaCodigo(p, entrada.termo)) ??
     (resultados.length === 1 ? resultados[0] : undefined);
   const excede = !!alvo && entrada.termo !== "" && qtdPedida > disponivel(alvo);
   const alertaDigitando =
@@ -225,6 +235,7 @@ export default function Pdv({
       });
       return;
     }
+    tocarBeep("ok");
     setCarrinho((c) =>
       c.some((i) => i.produto.id === p.id)
         ? c.map((i) => (i.produto.id === p.id ? { ...i, quantidade: i.quantidade + qtd } : i))
@@ -253,7 +264,7 @@ export default function Pdv({
     } catch {
       return setAviso({ tipo: "erro", texto: "Sem conexão com a internet. Verifique a rede e tente de novo." });
     }
-    const exato = lista.find((p) => p.sku.toLowerCase() === termo.toLowerCase());
+    const exato = lista.find((p) => casaCodigo(p, termo));
     if (exato) return adicionar(exato, quantidade);
     if (lista.length === 1) return adicionar(lista[0], quantidade);
     if (lista.length === 0) return setAviso({ tipo: "erro", texto: `Produto não encontrado: ${termo}` });
@@ -993,7 +1004,7 @@ export default function Pdv({
               </p>
             )}
             <div className="recibo-print">
-              <Recibo venda={vendaFeita} nomeFantasia={branding.nome_fantasia} />
+              <Recibo venda={vendaFeita} nomeFantasia={branding.nome_fantasia} largura={larguraCupom} />
             </div>
             <div className="mt-4 flex gap-2">
               <button onClick={() => window.print()} className="flex-1 rounded-lg border border-gray-300 py-2 font-medium">

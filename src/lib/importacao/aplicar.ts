@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { erroDeGravacao } from "@/lib/produtoErros";
 import { TAMANHO_LOTE, type ErroLinha, type LinhaPlano, type Plano } from "./tipos";
 
 export type Autor = { tenantId: string; id: string; nome: string };
@@ -37,6 +38,7 @@ function colunas(item: LinhaPlano, categorias: Map<string, string>) {
   if (d.estoque_minimo !== undefined) c.estoque_minimo = d.estoque_minimo;
   if (d.unidade !== undefined) c.unidade = d.unidade;
   if (d.descricao !== undefined) c.descricao = d.descricao;
+  if (d.codigo_barras !== undefined) c.codigo_barras = d.codigo_barras;
   return c;
 }
 
@@ -70,7 +72,7 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
     // O lote todo foi recusado (nada gravado): tenta linha a linha para apontar a que falhou
     for (const [k, i] of lote.entries()) {
       const um = await db.from("produtos").insert(linhas[k]).select("id").single();
-      if (um.error) falha(i, um.error.code === "23505" ? "SKU já cadastrado (criado por outra pessoa durante a importação)" : um.error.message);
+      if (um.error) falha(i, erroDeGravacao(um.error).message);
       else {
         resultado.criados++;
         if (i.dados.quantidade) ajustes.push({ id: um.data.id, item: i });
@@ -85,7 +87,7 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
       grupo.map(async (i) => {
         const campos = { ...colunas(i, categorias), ...(i.acao === "reativar" ? { ativo: true } : {}), atualizado_em: new Date().toISOString() };
         const { error } = await db.from("produtos").update(campos).eq("id", i.produtoId!).eq("tenant_id", tenantId);
-        if (error) return falha(i, error.message);
+        if (error) return falha(i, erroDeGravacao(error).message);
         if (i.acao === "reativar") resultado.reativados++;
         else resultado.atualizados++;
         if (i.dados.quantidade !== undefined && i.dados.quantidade !== i.quantidadeAtual) ajustes.push({ id: i.produtoId!, item: i });

@@ -15,6 +15,7 @@ const links = (slug: string): { href: string; label: string; perfis: PerfilLoja[
   { href: `/c/${slug}`, label: "Catálogo", perfis: ["admin", "operador"] },
   { href: "/configuracoes/branding", label: "Marca", perfis: ["admin"] },
   { href: "/configuracoes/pagamentos", label: "Pagamentos", perfis: ["admin"] },
+  { href: "/configuracoes/impressao", label: "Impressão", perfis: ["admin"] },
   { href: "/configuracoes/usuarios", label: "Usuários", perfis: ["admin"] },
 ];
 

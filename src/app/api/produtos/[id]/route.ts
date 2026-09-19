@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { exigirApi } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { ERRO_IMAGEM_FORA, imagemEhDaLoja } from "@/lib/storage";
+import { erroDeGravacao } from "@/lib/produtoErros";
 import { produtoSchema } from "@/types/produto";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -28,7 +29,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   const { id } = await params;
   const parsed = produtoSchema.safeParse(await req.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
   }
   if (!imagemEhDaLoja(sessao.tenantId, parsed.data.imagem_url)) {
     return NextResponse.json({ error: ERRO_IMAGEM_FORA }, { status: 400 });
@@ -41,8 +42,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     .select()
     .maybeSingle();
   if (error) {
-    const status = error.code === "23505" ? 409 : 500;
-    const message = status === 409 ? "SKU já cadastrado" : error.message;
+    const { status, message } = erroDeGravacao(error);
     return NextResponse.json({ error: message }, { status });
   }
   if (!data) return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });

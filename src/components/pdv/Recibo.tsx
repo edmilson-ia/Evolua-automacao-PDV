@@ -3,10 +3,21 @@ import { formatarTelefone } from "@/lib/telefone";
 import { FORMA_LABEL, type Venda } from "@/types/venda";
 
 // Comprovante interno, NÃO fiscal.
-export default function Recibo({ venda, nomeFantasia = "Evolua Automação" }: { venda: Venda; nomeFantasia?: string }) {
+export default function Recibo({
+  venda,
+  nomeFantasia = "Evolua Automação",
+  largura = 80,
+}: {
+  venda: Venda;
+  nomeFantasia?: string;
+  /** Largura do papel da impressora térmica, em mm. */
+  largura?: 58 | 80;
+}) {
   const subtotal = venda.itens_venda.reduce((s, i) => s + Number(i.subtotal), 0);
   return (
-    <div className="recibo font-mono text-sm">
+    <div className="recibo font-mono" style={{ width: `${largura}mm`, fontSize: largura === 58 ? 11 : 13, padding: "2mm" }}>
+      {/* Papel de cupom: sem margem de página e do tamanho da bobina (vale só ao imprimir) */}
+      <style>{`@media print { @page { size: ${largura}mm auto; margin: 0 } }`}</style>
       <div className="text-center font-bold">{nomeFantasia}</div>
       <div className="text-center text-xs">Comprovante não fiscal</div>
       <div className="text-center text-xs">{dataHoraBR(venda.criado_em)}</div>
@@ -15,10 +26,10 @@ export default function Recibo({ venda, nomeFantasia = "Evolua Automação" }: {
       <hr className="border-dashed my-2" />
       {venda.itens_venda.map((i) => (
         <div key={i.id} className="flex justify-between gap-2">
-          <span>
+          <span className="min-w-0 break-words">
             {Number(i.quantidade)}x {i.produtos?.nome ?? "Produto"}
           </span>
-          <span>{brl(Number(i.subtotal))}</span>
+          <span className="shrink-0">{brl(Number(i.subtotal))}</span>
         </div>
       ))}
       <hr className="border-dashed my-2" />

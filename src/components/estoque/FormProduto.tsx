@@ -64,6 +64,7 @@ export default function FormProduto({
       const body = {
         nome: f.get("nome"),
         sku: f.get("sku"),
+        codigo_barras: f.get("codigo_barras"),
         categoria_id: categoriaId,
         descricao: f.get("descricao") || null,
         imagem_url: imagemUrl,
@@ -102,6 +103,13 @@ export default function FormProduto({
       <div>
         <label className={label}>SKU</label>
         <input name="sku" required defaultValue={produto?.sku} className={input} />
+      </div>
+      <div className="sm:col-span-2">
+        <label className={label}>Código de barras (opcional)</label>
+        <input name="codigo_barras" inputMode="numeric" autoComplete="off" placeholder="Bipe o leitor aqui ou digite"
+          defaultValue={produto?.codigo_barras ?? ""} className={input}
+          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
+        <p className="mt-1 text-xs text-gray-500">O leitor USB digita o código e aperta Enter: aqui o Enter não salva o produto. Códigos EAN/UPC têm o dígito verificador conferido.</p>
       </div>
       <div>
         <label className={label}>Unidade</label>

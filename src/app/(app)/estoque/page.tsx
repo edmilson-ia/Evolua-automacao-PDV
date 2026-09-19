@@ -21,7 +21,7 @@ export default async function EstoquePage({
     .eq("tenant_id", sessao.tenantId)
     .eq("ativo", true)
     .order("nome");
-  if (q) query = query.or(`nome.ilike.%${q}%,sku.ilike.%${q}%`);
+  if (q) query = query.or(`nome.ilike.%${q}%,sku.ilike.%${q}%,codigo_barras.ilike.%${q}%`);
   const { data } = await query;
   const produtos = (data ?? []) as Produto[];
   const grupos = await gruposRepetidos(createServerClient(), sessao.tenantId);
@@ -61,7 +61,7 @@ export default async function EstoquePage({
       )}
 
       <form className="mb-4">
-        <input name="q" defaultValue={q} placeholder="Buscar por nome ou SKU"
+        <input name="q" defaultValue={q} placeholder="Buscar por nome, SKU ou código de barras"
           className="w-full rounded-lg border border-gray-300 px-3 py-2" />
       </form>
 
@@ -93,7 +93,10 @@ export default async function EstoquePage({
                     {p.nome}
                   </div>
                 </td>
-                <td className="p-3">{p.sku}</td>
+                <td className="p-3">
+                  {p.sku}
+                  {p.codigo_barras && <div className="text-xs text-gray-500">{p.codigo_barras}</div>}
+                </td>
                 <td className="p-3 text-right">{brl(p.preco_custo)}</td>
                 <td className="p-3 text-right">{brl(p.preco_venda)}</td>
                 <td className={`p-3 text-right ${p.quantidade <= p.estoque_minimo ? "text-red-600 font-semibold" : ""}`}>

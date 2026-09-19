@@ -17,6 +17,7 @@ export const CAMPOS = [
   { id: "estoque_minimo", rotulo: "Estoque mínimo", apelidos: ["estoque minimo", "minimo", "qtd minima"] },
   { id: "unidade", rotulo: "Unidade", apelidos: ["unidade", "un", "und"] },
   { id: "descricao", rotulo: "Descrição", apelidos: ["descricao", "detalhes", "observacao"] },
+  { id: "codigo_barras", rotulo: "Código de barras", apelidos: ["codigo de barras", "cod de barras", "cod barras", "codbarras", "barras", "ean", "ean13", "gtin"] },
 ] as const;
 
 export type CampoId = (typeof CAMPOS)[number]["id"];
@@ -37,6 +38,7 @@ export type DadosLinha = {
   estoque_minimo?: number;
   unidade?: string;
   descricao?: string | null;
+  codigo_barras?: string;
 };
 
 export type LinhaValidada = { linha: number; dados: DadosLinha; erros: string[] };
