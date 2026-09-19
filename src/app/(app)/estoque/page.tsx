@@ -33,6 +33,9 @@ export default async function EstoquePage({
           <Link href="/estoque/movimentos" className="rounded-lg border border-brand px-4 py-2 font-medium text-brand">
             Movimentar estoque
           </Link>
+          <Link href="/estoque/importar" className="rounded-lg border border-brand px-4 py-2 font-medium text-brand">
+            Importar planilha
+          </Link>
           <Link href="/estoque/novo" className="rounded-lg bg-brand px-4 py-2 text-white font-medium">
             + Novo produto
           </Link>

@@ -25,6 +25,7 @@ Não há suíte de testes: regras de segurança, dinheiro e estoque são provada
 node --env-file=.env.local scripts/test-quem-vendeu.mjs
 node --env-file=.env.local scripts/test-multi-loja.mjs   # isolamento entre lojas
 node --env-file=.env.local scripts/test-caixa.mjs        # caixa (valores, permissões, concorrência)
+node --env-file=.env.local scripts/test-importar.mjs     # importação de planilha (CSV/XLSX, isolamento)
 ```
 
 ## Arquitetura
@@ -48,6 +49,7 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 - Por loja (colunas de `tenants`): `slug`, marca, `pix_chave`/`pix_cidade` e `taxa_debito`/`taxa_credito` (`getConfigPagamento`). Imagens em `produtos/<tenant>/...`; só a pasta da própria loja é aceita em `imagem_url`/branding.
 - Quem fez: `vendas` e `movimentos_estoque` guardam `operador_id` + `operador_nome` (cópia do nome na hora); cancelamentos e movimentos manuais também vão para `auditoria`. O operador vem SEMPRE da sessão, nunca do corpo da requisição. Operador só lista as próprias vendas.
 - Caixa: tabelas `caixas` e `movimentos_caixa`; `tenants.caixa_obrigatorio` (padrão desligado, toggle em Pagamentos). O esperado é calculado NO BANCO (`caixa_resumo`: vendas concluídas por forma; canceladas fora) e o fechamento é cego. `fechar_venda` liga a venda ao caixa aberto de quem vende (`for share`) e recusa sem caixa quando obrigatório; `fechar_caixa` trava com `for update`; `cancelar_venda` recusa venda de caixa já fechado. Erros das funções: P0002 não encontrado, P0004 sem permissão, P0001 regra (`statusDoErroCaixa`).
+- Importar produtos (`/estoque/importar`, só admin; `src/lib/importacao/` + `POST /api/produtos/importar`, modelo em `.../modelo`): CSV (UTF-8/BOM ou ISO-8859-1, `;` `,` ou tab) e XLSX (`exceljs`, só servidor). Modos `ler` (colunas + mapeamento sugerido), `previa` (valida SEM gravar) e `confirmar`; o arquivo vai nas 3 chamadas (servidor sem estado). Cria/atualiza/REATIVA por SKU (único por loja, inclusive excluídos); atualização só mexe nos campos mapeados; produto novo exige nome e preço de venda. Números BR (`12,50`, `1.250,00`, `R$ 3,5`). Categorias casadas sem diferenciar maiúsculas (vale a 1ª grafia). Estoque NUNCA é gravado direto: produto nasce com 0 e a quantidade da planilha (=contagem) vira movimento por `registrar_movimento` (auditado). Limites: 5 MB, 2.000 linhas, lotes de 100. Sem migration. `npm audit` acusa 2 avisos moderados do `uuid` dentro do `exceljs` (v3/v5/v6 com buffer; ele usa v4: não explorável). Teste: `scripts/test-importar.mjs` (48).
 - Datas sempre em America/Sao_Paulo (`src/lib/format.ts`). Taxas de cartão por loja (`src/lib/taxas.ts` recebe as taxas), calculadas na exibição.
 - PIX: QR estático (`src/lib/pix.ts`) com a chave da loja; **não confirma pagamento**.
 - Clientes: tabela `clientes` por loja (nome, telefone só dígitos, e-mail, endereço; exclusão lógica). Operador busca/cadastra; só admin edita/exclui. A venda guarda `cliente_id` + cópia de nome/telefone e, se `entrega`, `entrega_endereco` (o banco confere que o cliente é da loja; nome/telefone vêm do cadastro, não do corpo). Sem taxa/status de entrega ainda.
@@ -78,4 +80,4 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 - Ao concluir cada etapa, atualizar também a skill `evolua-automacao-pdv` (status, decisões, pendências). Uma cópia da skill fica em `docs/skill/SKILL.md` (a versão viva está na pasta de skills do Claude; recopiar para cá ao atualizar). O bloco "PONTO DE PARTIDA DA PRÓXIMA SESSÃO" dela diz por onde continuar.
 
 ## Roteiro (ordem: 6 → 1 → 2 → 3 → 5 → 4)
-6 Quem vendeu (feito) · 1 Multi-loja + clientes + entrega (feito) · 2 Caixa (feito) · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
+6 Quem vendeu (feito) · 1 Multi-loja + clientes + entrega (feito) · 2 Caixa (feito) · 3 Importar produtos por planilha (feito) · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
