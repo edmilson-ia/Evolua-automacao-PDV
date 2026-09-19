@@ -8,6 +8,7 @@ type Leitura = { colunas: string[]; amostra: (string | number)[][]; total: numbe
 type Previa = {
   totais: { criar: number; atualizar: number; reativar: number; erros: number };
   categoriasNovas: string[];
+  avisos: { semSku: number; semPreco: number };
   erros: ErroLinha[];
   itens: { linha: number; acao: Acao; sku: string; nome: string | null }[];
   totalItens: number;
@@ -82,8 +83,6 @@ export default function ImportarProdutos() {
     setPrevia(null);
   }
 
-  const pronto = mapa.sku != null;
-
   return (
     <div className="space-y-5">
       {/* 1. Arquivo */}
@@ -123,7 +122,6 @@ export default function ImportarProdutos() {
               <label key={c.id} className="text-sm">
                 <span className="mb-1 block font-medium">
                   {c.rotulo}
-                  {c.id === "sku" ? " *" : ""}
                 </span>
                 <select
                   value={mapa[c.id] ?? ""}
@@ -139,12 +137,13 @@ export default function ImportarProdutos() {
             ))}
           </div>
           <p className="mt-3 text-xs text-gray-500">
-            Produto novo precisa de Nome e Preço de venda. A quantidade da planilha vira a contagem do estoque
-            (a diferença fica registrada nos movimentos).
+            Nenhum campo é obrigatório. Sem SKU, o sistema cria um código automático (e a linha sempre vira produto novo);
+            sem nome, usa o SKU como nome; sem preço de venda, o produto entra com R$ 0,00.
+            A quantidade da planilha vira a contagem do estoque (a diferença fica registrada nos movimentos).
           </p>
           <button
             onClick={conferir}
-            disabled={!pronto || ocupado}
+            disabled={ocupado}
             className="mt-4 rounded-lg bg-brand px-4 py-2 font-medium text-white disabled:opacity-50"
           >
             Conferir (prévia)
@@ -166,6 +165,12 @@ export default function ImportarProdutos() {
             <p className="mb-3 text-sm">
               <strong>Categorias que serão criadas:</strong> {previa.categoriasNovas.join(", ")}
             </p>
+          )}
+          {(previa.avisos.semSku > 0 || previa.avisos.semPreco > 0) && (
+            <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {previa.avisos.semSku > 0 && <p>{previa.avisos.semSku} linhas sem SKU receberão um código automático (AUTO-…).</p>}
+              {previa.avisos.semPreco > 0 && <p>{previa.avisos.semPreco} produtos novos ficarão com preço de venda R$ 0,00 — ajuste depois no estoque.</p>}
+            </div>
           )}
           {previa.erros.length > 0 && <TabelaErros erros={previa.erros} titulo="Linhas com problema (serão ignoradas)" />}
           {previa.itens.length > 0 && (

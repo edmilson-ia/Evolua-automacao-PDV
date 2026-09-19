@@ -20,7 +20,7 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
 
   // Produtos que já existem na loja (inclusive os excluídos: o SKU é único por loja)
   const existentes = new Map<string, Existente>();
-  for (const bloco of em_blocos(boas.map((b) => b.dados.sku), 100)) {
+  for (const bloco of em_blocos(boas.map((b) => b.dados.sku).filter(Boolean), 100)) {
     const { data, error } = await db
       .from("produtos")
       .select("id, sku, ativo, quantidade")
@@ -35,13 +35,33 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
   const categoriasDaLoja = new Set((cats ?? []).map((c) => c.nome.toLowerCase()));
   const novas = new Map<string, string>(); // minúsculo → nome como veio na planilha
 
+  // Linhas sem SKU ganham um código automático (AUTO-000001...), continuando a numeração da loja
+  const semSku = boas.filter((b) => !b.dados.sku);
+  let proximoAuto = 0;
+  if (semSku.length) {
+    const { data: ultimo, error: errAuto } = await db
+      .from("produtos")
+      .select("sku")
+      .eq("tenant_id", tenantId)
+      .like("sku", "AUTO-%")
+      .order("sku", { ascending: false })
+      .limit(1);
+    if (errAuto) throw new Error(errAuto.message);
+    proximoAuto = Number(ultimo?.[0]?.sku.slice(5)) || 0;
+  }
+
+  let semPreco = 0;
   const itens: LinhaPlano[] = [];
   for (const v of boas) {
+    if (!v.dados.sku) v.dados.sku = `AUTO-${String(++proximoAuto).padStart(6, "0")}`;
     const ex = existentes.get(v.dados.sku);
-    if (!ex && (v.dados.nome === undefined || v.dados.preco_venda === undefined)) {
-      const falta = v.dados.nome === undefined ? "Nome" : "Preço de venda";
-      erros.push({ linha: v.linha, sku: v.dados.sku, erro: `${falta} obrigatório para produto novo (SKU não cadastrado)` });
-      continue;
+    if (!ex) {
+      // Produto novo: o que faltar assume um padrão (nome = SKU, preço de venda = 0)
+      v.dados.nome ??= v.dados.sku;
+      if (v.dados.preco_venda === undefined) {
+        v.dados.preco_venda = 0;
+        semPreco++;
+      }
     }
     const cat = v.dados.categoria;
     const categoriaNova = !!cat && !categoriasDaLoja.has(cat.toLowerCase());
@@ -62,6 +82,7 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
     itens,
     erros,
     categoriasNovas: [...novas.values()],
+    avisos: { semSku: semSku.length, semPreco },
     totais: { criar: conta("criar"), atualizar: conta("atualizar"), reativar: conta("reativar"), erros: erros.length },
   };
 }

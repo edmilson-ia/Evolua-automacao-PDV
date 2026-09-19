@@ -19,14 +19,16 @@ const MAX = { nome: 200, sku: 60, unidade: 10, descricao: 1000, categoria: 80 };
  */
 export function validarLinhas(planilha: Planilha, mapa: Mapeamento): LinhaValidada[] {
   const vistos = new Map<string, number>();
-  return planilha.linhas.map((cels, idx) => {
+  const usadas = Object.values(mapa).filter((i): i is number => i != null);
+  const linhasUteis = planilha.linhas.map((cels, idx) => ({ cels, idx })).filter(({ cels }) => usadas.some((i) => texto(cels[i]) !== ""));
+  return linhasUteis.map(({ cels, idx }) => {
     const linha = idx + 2;
     const erros: string[] = [];
     const pega = (campo: keyof Mapeamento) => (mapa[campo] == null ? undefined : cels[mapa[campo] as number]);
     const mapeado = (campo: keyof Mapeamento) => mapa[campo] != null;
 
     const sku = texto(pega("sku"));
-    if (!sku) erros.push("SKU vazio");
+    if (!sku) { /* sem SKU: o sistema gera um */ }
     else if (sku.length > MAX.sku) erros.push(`SKU com mais de ${MAX.sku} caracteres`);
     else {
       const anterior = vistos.get(sku);
@@ -38,9 +40,8 @@ export function validarLinhas(planilha: Planilha, mapa: Mapeamento): LinhaValida
 
     if (mapeado("nome")) {
       const nome = texto(pega("nome"));
-      if (!nome) erros.push("Nome vazio");
-      else if (nome.length > MAX.nome) erros.push(`Nome com mais de ${MAX.nome} caracteres`);
-      else dados.nome = nome;
+      if (nome.length > MAX.nome) erros.push(`Nome com mais de ${MAX.nome} caracteres`);
+      else if (nome) dados.nome = nome; // vazio: não altera (produto novo usa o SKU como nome)
     }
     if (mapeado("categoria")) {
       const cat = texto(pega("categoria"));

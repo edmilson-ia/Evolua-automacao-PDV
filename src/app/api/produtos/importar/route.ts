@@ -65,7 +65,6 @@ export async function POST(req: Request) {
   for (const idx of Object.values(mapa)) {
     if (idx != null && idx >= planilha.colunas.length) return erro("Mapeamento aponta para uma coluna que não existe");
   }
-  if (mapa.sku == null) return erro("Indique qual coluna é o SKU");
 
   const db = createServerClient();
   try {
@@ -74,6 +73,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         totais: plano.totais,
         categoriasNovas: plano.categoriasNovas,
+        avisos: plano.avisos,
         erros: plano.erros,
         itens: plano.itens.slice(0, 50).map((i) => ({ linha: i.linha, acao: i.acao, sku: i.dados.sku, nome: i.dados.nome ?? null })),
         totalItens: plano.itens.length,

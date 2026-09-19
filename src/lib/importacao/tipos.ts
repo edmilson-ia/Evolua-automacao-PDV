@@ -8,15 +8,15 @@ export type Celula = string | number;
 export type Planilha = { colunas: string[]; linhas: Celula[][] };
 
 export const CAMPOS = [
-  { id: "sku", rotulo: "SKU (código)", obrigatorio: true, apelidos: ["sku", "codigo", "codigo do produto", "cod", "ref", "referencia"] },
-  { id: "nome", rotulo: "Nome", obrigatorio: true, apelidos: ["nome", "produto", "descricao do produto", "titulo"] },
-  { id: "categoria", rotulo: "Categoria", obrigatorio: false, apelidos: ["categoria", "grupo", "departamento"] },
-  { id: "preco_custo", rotulo: "Preço de custo", obrigatorio: false, apelidos: ["preco custo", "preco de custo", "custo"] },
-  { id: "preco_venda", rotulo: "Preço de venda", obrigatorio: false, apelidos: ["preco venda", "preco de venda", "preco", "valor", "venda"] },
-  { id: "quantidade", rotulo: "Quantidade em estoque", obrigatorio: false, apelidos: ["quantidade", "qtd", "qtde", "estoque", "saldo"] },
-  { id: "estoque_minimo", rotulo: "Estoque mínimo", obrigatorio: false, apelidos: ["estoque minimo", "minimo", "qtd minima"] },
-  { id: "unidade", rotulo: "Unidade", obrigatorio: false, apelidos: ["unidade", "un", "und"] },
-  { id: "descricao", rotulo: "Descrição", obrigatorio: false, apelidos: ["descricao", "detalhes", "observacao"] },
+  { id: "sku", rotulo: "SKU (código)", apelidos: ["sku", "codigo", "codigo do produto", "cod", "ref", "referencia"] },
+  { id: "nome", rotulo: "Nome", apelidos: ["nome", "produto", "descricao do produto", "titulo"] },
+  { id: "categoria", rotulo: "Categoria", apelidos: ["categoria", "grupo", "departamento"] },
+  { id: "preco_custo", rotulo: "Preço de custo", apelidos: ["preco custo", "preco de custo", "custo"] },
+  { id: "preco_venda", rotulo: "Preço de venda", apelidos: ["preco venda", "preco de venda", "preco", "valor", "venda"] },
+  { id: "quantidade", rotulo: "Quantidade em estoque", apelidos: ["quantidade", "qtd", "qtde", "estoque", "saldo"] },
+  { id: "estoque_minimo", rotulo: "Estoque mínimo", apelidos: ["estoque minimo", "minimo", "qtd minima"] },
+  { id: "unidade", rotulo: "Unidade", apelidos: ["unidade", "un", "und"] },
+  { id: "descricao", rotulo: "Descrição", apelidos: ["descricao", "detalhes", "observacao"] },
 ] as const;
 
 export type CampoId = (typeof CAMPOS)[number]["id"];
@@ -56,5 +56,6 @@ export type Plano = {
   itens: LinhaPlano[];
   erros: ErroLinha[];
   categoriasNovas: string[];
+  avisos: { semSku: number; semPreco: number };
   totais: { criar: number; atualizar: number; reativar: number; erros: number };
 };
