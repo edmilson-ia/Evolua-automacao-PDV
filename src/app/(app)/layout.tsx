@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sessao = await exigirPagina();
   const [b, teste] = await Promise.all([getBranding(sessao.tenantId), getTeste(sessao.tenantId)]);
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[env(safe-area-inset-top)]">
       <FaixaTeste teste={teste} />
       <header className="border-b border-gray-200 bg-white print:hidden">
         <nav className="mx-auto flex max-w-6xl items-center gap-4 overflow-x-auto p-3 sm:px-6">
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {b.nome_fantasia}
           </span>
           {links(b.slug).filter((l) => l.perfis.includes(sessao.perfil)).map((l) => (
-            <Link key={l.href} href={l.href} className="whitespace-nowrap text-sm font-medium text-gray-700 hover:text-brand">
+            <Link key={l.href} href={l.href} className="whitespace-nowrap py-2 text-sm font-medium text-gray-700 hover:text-brand">
               {l.label}
             </Link>
           ))}

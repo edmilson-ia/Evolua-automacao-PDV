@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import CartaoAuth from "@/components/auth/CartaoAuth";
 import FormLogin from "@/components/auth/FormLogin";
+import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 import { getSessaoAtiva } from "@/lib/auth";
 import { paginaInicial } from "@/lib/session";
 import { getLojaPorSlug } from "@/lib/tenant";
@@ -53,6 +54,9 @@ export default async function LojaLoginPage({
           Trocar de loja
         </Link>
       </p>
+      <div className="mt-4 flex justify-center">
+        <InstallPwaButton className="rounded-lg border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-gray-50" />
+      </div>
     </CartaoAuth>
   );
 }

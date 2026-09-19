@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import LeitorCamera from "@/components/pdv/LeitorCamera";
 import type { Categoria, Produto } from "@/types/produto";
 
 const UNIDADES = ["un", "kg", "g", "L", "ml", "cx", "pct"];
@@ -26,6 +27,8 @@ export default function FormProduto({
   const [preview, setPreview] = useState<string | null>(produto?.imagem_url ?? null);
   const [removerFoto, setRemoverFoto] = useState(false);
   const arquivoRef = useRef<HTMLInputElement>(null);
+  const codigoRef = useRef<HTMLInputElement>(null);
+  const [camera, setCamera] = useState(false);
 
   function removerImagem() {
     if (arquivoRef.current) arquivoRef.current.value = "";
@@ -106,9 +109,22 @@ export default function FormProduto({
       </div>
       <div className="sm:col-span-2">
         <label className={label}>Código de barras (opcional)</label>
-        <input name="codigo_barras" inputMode="numeric" autoComplete="off" placeholder="Bipe o leitor aqui ou digite"
-          defaultValue={produto?.codigo_barras ?? ""} className={input}
-          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
+        <div className="flex gap-2">
+          <input ref={codigoRef} name="codigo_barras" inputMode="numeric" autoComplete="off" placeholder="Bipe o leitor, use a câmera ou digite"
+            defaultValue={produto?.codigo_barras ?? ""} className={input}
+            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
+          <button type="button" onClick={() => setCamera(true)} className="shrink-0 rounded-lg border border-brand px-3 py-2 text-sm font-medium text-brand">
+            Câmera
+          </button>
+        </div>
+        {camera && (
+          <LeitorCamera
+            onLido={(c) => {
+              if (codigoRef.current) codigoRef.current.value = c;
+            }}
+            onFechar={() => setCamera(false)}
+          />
+        )}
         <p className="mt-1 text-xs text-gray-500">O leitor USB digita o código e aperta Enter: aqui o Enter não salva o produto. Códigos EAN/UPC têm o dígito verificador conferido.</p>
       </div>
       <div>

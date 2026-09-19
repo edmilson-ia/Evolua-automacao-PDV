@@ -22,8 +22,10 @@ import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento } from "@/types/venda";
 import type { Venda } from "@/types/venda";
 import BuscaCliente from "./BuscaCliente";
 import { tocarBeep } from "@/lib/beep";
+import { mesmoCodigo } from "@/lib/codigoBarras";
 import { baixarEstoqueLocal, buscarNoCatalogo, contarCatalogo, enfileirar, type VendaPendente } from "@/lib/offline/armazem";
 import { fetchComTimeout } from "@/lib/offline/sincronizar";
+import LeitorCamera from "./LeitorCamera";
 import PendentesOffline from "./PendentesOffline";
 import Recibo from "./Recibo";
 import { useVendasOffline } from "./useVendasOffline";
@@ -56,7 +58,7 @@ function novaChave(): string {
 
 /** O termo é o SKU ou o código de barras (leitor USB) exato do produto. */
 const casaCodigo = (p: Produto, termo: string) =>
-  p.sku.toLowerCase() === termo.toLowerCase() || (!!p.codigo_barras && p.codigo_barras === termo);
+  p.sku.toLowerCase() === termo.toLowerCase() || (!!p.codigo_barras && mesmoCodigo(p.codigo_barras, termo));
 
 const fmtQtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const num = (s: string) => Number(s.replace(",", ".")) || 0;
@@ -134,6 +136,7 @@ export default function Pdv({
   // Modo sem internet: cópia do catálogo, fila de vendas guardadas e envio automático quando a internet volta
   const offline = useVendasOffline(tenantId, operadorId, online);
   const [painelOffline, setPainelOffline] = useState(false);
+  const [cameraAberta, setCameraAberta] = useState(false);
   const [vendaOffline, setVendaOffline] = useState(false);
   const chaveRef = useRef<{ assinatura: string; chave: string } | null>(null);
 
@@ -288,11 +291,12 @@ export default function Pdv({
     setAviso(null);
   }
 
-  async function confirmarEntrada() {
-    const { qtd, termo } = parseEntrada(busca);
+  /** `texto`: código vindo da câmera (sem depender do que está digitado no campo). */
+  async function confirmarEntrada(texto?: string) {
+    const { qtd, termo } = parseEntrada(texto ?? busca);
     if (!termo) return;
     const quantidade = qtd ?? num(qtdCampo);
-    if (idx >= 0 && resultados[idx]) return adicionar(resultados[idx], quantidade);
+    if (texto === undefined && idx >= 0 && resultados[idx]) return adicionar(resultados[idx], quantidade);
 
     let lista: Produto[];
     try {
@@ -504,7 +508,7 @@ export default function Pdv({
   // ---------- atalhos globais (F4 finalizar, F6 produto, F7 cliente, F8 remover, F9 cancelar) ----------
   useEffect(() => {
     teclasRef.current = (e: KeyboardEvent) => {
-      if (vendaFeita || clienteAberto || janelaCaixa || bloqueado) return; // as janelas cuidam das próprias teclas
+      if (vendaFeita || clienteAberto || janelaCaixa || bloqueado || cameraAberta) return; // as janelas cuidam das próprias teclas
       if (pagando) {
         if (e.key === "Escape") setPagando(false);
         return;
@@ -567,7 +571,7 @@ export default function Pdv({
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-white text-gray-900">
       {/* ===== Topo ===== */}
-      <header className="relative z-30 flex items-center gap-3 px-3 py-2 text-white" style={{ background: cor }}>
+      <header className="relative z-30 flex items-center gap-3 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-white" style={{ background: cor }}>
         {marca}
         <div className="min-w-0 flex-1 text-center leading-tight">
           <div className="text-sm sm:text-lg">{caixa ? `${caixa.terminal} | Caixa aberto` : "PDV | Venda à vista"}</div>
@@ -852,6 +856,15 @@ export default function Pdv({
                   style={{ background: "#d5eef3", borderColor: cor }}
                 />
               </label>
+              <button
+                onClick={() => setCameraAberta(true)}
+                aria-label="Ler código de barras com a câmera"
+                title="Ler código de barras com a câmera"
+                className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-lg border-2 bg-white hover:bg-gray-50 sm:order-last"
+                style={{ borderColor: cor, color: cor }}
+              >
+                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10" /></svg>
+              </button>
               <label className="w-28 sm:w-40">
                 <span className="text-sm text-gray-500">Qtd (Enter)</span>
                 <input
@@ -887,7 +900,7 @@ export default function Pdv({
       </div>
 
       {/* ===== Rodapé ===== */}
-      <footer className="flex items-center justify-between px-3 py-1 text-white" style={{ background: cor }}>
+      <footer className="flex items-center justify-between px-3 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] text-white" style={{ background: cor }}>
         <div className="text-xs sm:text-sm">
           <span className="text-amber-300">Versão 0.1</span> ·{" "}
           <span className={online ? "text-emerald-300" : "text-red-300"}>● {online ? "On-line" : "Off-line"}</span>
@@ -908,6 +921,16 @@ export default function Pdv({
         <div className="hidden text-xs text-white/80 sm:block">{branding.nome_fantasia} • PDV</div>
         <div className="text-2xl font-semibold tabular-nums text-amber-300 sm:text-3xl">{hora}</div>
       </footer>
+
+      {cameraAberta && (
+        <LeitorCamera
+          continuo
+          titulo="Escanear produtos"
+          retorno={aviso?.texto ?? null}
+          onLido={(codigo) => void confirmarEntrada(codigo)}
+          onFechar={() => setCameraAberta(false)}
+        />
+      )}
 
       {painelOffline && (
         <PendentesOffline

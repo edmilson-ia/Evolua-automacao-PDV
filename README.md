@@ -15,6 +15,7 @@ Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 �
 | **Fotos por planilha** (`/estoque/importar`, aviso no Catálogo) | Coluna com o link da foto (Google Drive ou site): depois de importar, o sistema baixa cada foto sozinho, com barra de progresso, reduz e guarda na sua loja. Linhas repetidas aproveitam a foto para o produto que já existe. Só links `https` públicos; endereços internos são bloqueados. No Catálogo, o administrador vê "N produtos sem foto" com atalho |
 | **Excluir vários produtos** (Estoque) | Marque produtos (ou "Selecionar todos com estoque 0") e clique em "Excluir selecionados". O produto sai das listas e o histórico de vendas fica |
 | **Período de teste grátis** (`/plataforma`, só o dono) | Crie a loja do cliente com 7, 14 ou 30 dias de teste (ou sem teste), opcionalmente já com 20 produtos de exemplo para demonstrar. A loja mostra "Teste grátis: faltam N dias". Ao vencer, o acesso é bloqueado e o catálogo sai do ar, sem apagar nada: você **prorroga** ou **ativa** a loja quando o cliente fechar. Botões para copiar o link do catálogo e do login |
+| **App no celular** (PWA) | Instale pelo navegador (Android: "Instalar app"; iPhone: Compartilhar → Adicionar à Tela de Início). Abre em tela cheia com a marca da loja e o PDV funciona sem internet. **Leitor por câmera**: botão no PDV e no cadastro do produto para ler código de barras com a câmera do celular (precisa do site com https). Áreas seguras do iPhone, botões e campos ajustados para o toque |
 | **Importar planilha** (`/estoque/importar`, só admin) | Envia CSV ou XLSX, escolhe as colunas, confere uma **prévia** (nada é gravado) e confirma. Nenhuma coluna é obrigatória (sem SKU gera código automático, sem nome usa o SKU, sem preço fica R$ 0,00). Cria ou atualiza por SKU (reativa produto excluído), cria categorias novas, aceita números BR (`1.250,00`) e mostra os erros linha a linha. Quantidade vira movimento de estoque. Limites: 5 MB e 2.000 linhas. Produtos com nome igual ao que já existe (ou repetido no arquivo) vêm marcados na prévia para pular. No Estoque, um aviso de produtos repetidos leva à tela de revisão, onde você exclui os que sobrarem. Tem planilha modelo para baixar
 | **Vendas** (`/pdv/vendas`) | Histórico por dia com **quem vendeu** (o operador vê só as próprias vendas; o admin vê todas), totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
 | **Estoque** (`/estoque`) | CRUD de produtos com foto e categoria, alerta de estoque baixo, **movimentos** (entrada, saída e ajuste de inventário) |
@@ -108,6 +109,8 @@ node scripts/test-imagens-baixar.mjs                     # download seguro de fo
 node --env-file=.env.local scripts/test-imagens.mjs      # fotos por link na importação
 node --env-file=.env.local scripts/test-excluir-selecionados.mjs # exclusão em massa
 node --env-file=.env.local scripts/test-teste-gratis.mjs # período de teste (~40 s)
+node scripts/test-leitor-zxing.mjs                       # leitura de código de barras (sem servidor)
+node --env-file=.env.local scripts/test-app-celular.mjs  # requisitos de instalação do app
 ```
 
 ## Publicação e app no celular

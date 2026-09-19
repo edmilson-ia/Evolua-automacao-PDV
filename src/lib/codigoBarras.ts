@@ -4,6 +4,16 @@ export function normalizarCodigoBarras(valor: string | null | undefined): string
   return t === "" ? null : t;
 }
 
+/**
+ * Mesmo produto lido de formas diferentes: um EAN-13 com zero na frente é o mesmo código do UPC-A de 12 dígitos
+ * (a câmera lê "036000291452" onde a etiqueta/cadastro tem "0036000291452"). Fora isso, comparação exata.
+ */
+export function mesmoCodigo(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [curto, longo] = a.length <= b.length ? [a, b] : [b, a];
+  return /^\d{12}$/.test(curto) && /^\d{13}$/.test(longo) && longo === `0${curto}`;
+}
+
 /** Dígito verificador GS1 (EAN-8, UPC-A, EAN-13 e GTIN-14): pesos 3 e 1, da direita para a esquerda. */
 function digitoVerificadorOk(codigo: string): boolean {
   const digitos = [...codigo].map(Number);
