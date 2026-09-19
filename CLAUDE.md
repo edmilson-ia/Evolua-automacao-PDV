@@ -68,5 +68,12 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 5. **Demonstração visual**: screenshots no navegador do preview mostrando como ficou.
 6. Atualizar README/CLAUDE.md se a arquitetura mudou. Commit em português com a linha final `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` e `git push`.
 
+## Armadilhas já vividas
+- **Migrations**: o SQL Editor mostra um aviso de "operação destrutiva" para `drop`; se o usuário não clicar em "Run this query", nada roda e não aparece erro. `PGRST202 ... in the schema cache` = migration não aplicada (ou cache velho: terminar com `notify pgrst, 'reload schema';`). Ao mudar a assinatura de uma função: `drop function if exists <antiga>` + revoke/grant de execute na nova (só `service_role`). Conferir o banco antes de testar (colunas + chamar a função com parâmetros nulos).
+- **Login/demo**: Claude nunca digita senha em formulário. O navegador do preview e a janela do app instalado têm logins separados: o usuário precisa entrar no painel do PREVIEW para haver capturas logadas; senão, entregar checklist manual e dizer o que não foi visto.
+- **Testes**: primeiro disparo depois de subir o servidor pode dar `fetch failed` (compilando). `Assertion failed ... UV_HANDLE_CLOSING` no fim de script Node no Windows é ruído inofensivo.
+- **Shell**: evitar vários heredocs com aspas numa chamada Bash (erro de parse, nada roda); escrever o script no scratchpad com a ferramenta Write e rodar o arquivo.
+- Ao concluir cada etapa, atualizar também a skill `evolua-automacao-pdv` (status, decisões, pendências).
+
 ## Roteiro (ordem: 6 → 1 → 2 → 3 → 5 → 4)
-6 Quem vendeu (feito) · 1 Multi-loja (multi-tenant) · 2 Abertura/fechamento de caixa · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
+6 Quem vendeu (feito) · 1 Multi-loja + clientes + entrega (feito) · 2 Caixa (em andamento) · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
