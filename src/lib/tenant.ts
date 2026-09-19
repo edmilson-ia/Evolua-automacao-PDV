@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createServerClient } from "@/lib/supabase/server";
 import type { TaxasCartao } from "@/lib/taxas";
+import { estadoDoTeste, type EstadoTeste } from "@/lib/teste";
 
 // Não existe "loja padrão": nas rotas privadas a loja vem SEMPRE da sessão (sessao.tenantId);
 // nas telas públicas, do slug da URL (getLojaPorSlug).
@@ -35,16 +36,26 @@ export async function getBranding(tenantId: string | null): Promise<Branding> {
   }
 }
 
-export type LojaPublica = Branding & { id: string; ativo: boolean };
+/** `ativo` já considera o período de teste: teste vencido = inativa. `teste_vencido` diferencia da suspensão manual. */
+export type LojaPublica = Branding & { id: string; ativo: boolean; teste_vencido: boolean };
 
-/** Loja pelo slug da URL (telas públicas). null = não existe. Quem chama decide o que fazer com loja suspensa. */
+/** Loja pelo slug da URL (telas públicas). null = não existe. Quem chama decide o que fazer com loja suspensa ou com teste vencido. */
 export const getLojaPorSlug = cache(async (slug: string): Promise<LojaPublica | null> => {
   const { data } = await createServerClient()
     .from("tenants")
-    .select(`id, ativo, ${COLUNAS_BRANDING}`)
+    .select(`id, ativo, teste_ate, ${COLUNAS_BRANDING}`)
     .eq("slug", slug.toLowerCase())
     .maybeSingle();
-  return data ?? null;
+  if (!data) return null;
+  const { ativo, teste_ate, ...resto } = data;
+  const vencido = estadoDoTeste(teste_ate).modo === "vencido";
+  return { ...resto, ativo: ativo === true && !vencido, teste_vencido: ativo === true && vencido };
+});
+
+/** Situação do teste grátis da loja (para os avisos nas telas). Loja sem prazo = definitiva. */
+export const getTeste = cache(async (tenantId: string): Promise<EstadoTeste> => {
+  const { data } = await createServerClient().from("tenants").select("teste_ate").eq("id", tenantId).maybeSingle();
+  return estadoDoTeste(data?.teste_ate);
 });
 
 export type ConfigPagamento = { pix_chave: string; pix_cidade: string; caixa_obrigatorio: boolean } & TaxasCartao;
@@ -74,13 +85,17 @@ export async function getConfigImpressao(tenantId: string): Promise<{ largura_cu
 // Loja suspensa deve perder o acesso logo, mesmo com sessão (JWT) ainda válida: confere a cada
 // requisição, com cache curto para não pesar no banco.
 const CACHE_ATIVA_MS = 30_000;
-const cacheAtiva = new Map<string, { ativo: boolean; ate: number }>();
+// Guardado no globalThis: rotas e páginas podem ser compiladas em pacotes separados (no desenvolvimento), e "ativar/prorrogar/
+// suspender" precisa limpar o MESMO cache que o resto do servidor consulta.
+type EntradaCache = { ativo: boolean; ate: number };
+const cacheAtiva: Map<string, EntradaCache> = ((globalThis as { __evoluaCacheLojaAtiva?: Map<string, EntradaCache> }).__evoluaCacheLojaAtiva ??= new Map());
 
 export async function lojaAtiva(tenantId: string): Promise<boolean> {
   const c = cacheAtiva.get(tenantId);
   if (c && c.ate > Date.now()) return c.ativo;
-  const { data } = await createServerClient().from("tenants").select("ativo").eq("id", tenantId).maybeSingle();
-  const ativo = data?.ativo === true;
+  const { data } = await createServerClient().from("tenants").select("ativo, teste_ate").eq("id", tenantId).maybeSingle();
+  // Suspensa à mão OU teste grátis vencido: em qualquer caso perde o acesso (nada é apagado)
+  const ativo = data?.ativo === true && estadoDoTeste(data.teste_ate).modo !== "vencido";
   cacheAtiva.set(tenantId, { ativo, ate: Date.now() + CACHE_ATIVA_MS });
   return ativo;
 }

@@ -28,6 +28,7 @@ export async function POST(req: Request) {
   if (slug) {
     const loja = await getLojaPorSlug(slug);
     if (!loja) return NextResponse.json({ error: "Loja não encontrada" }, { status: 404 });
+    if (loja.teste_vencido) return NextResponse.json({ error: "O período de teste desta loja terminou. Fale com o suporte para ativar." }, { status: 403 });
     if (!loja.ativo) return NextResponse.json({ error: "Esta loja está suspensa. Fale com o suporte." }, { status: 403 });
     tenantId = loja.id;
   }

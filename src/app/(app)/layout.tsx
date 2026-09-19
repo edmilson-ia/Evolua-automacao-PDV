@@ -2,7 +2,8 @@ import Link from "next/link";
 import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { exigirPagina } from "@/lib/auth";
-import { getBranding } from "@/lib/tenant";
+import FaixaTeste from "@/components/teste/FaixaTeste";
+import { getBranding, getTeste } from "@/lib/tenant";
 import type { PerfilLoja } from "@/lib/session";
 
 const links = (slug: string): { href: string; label: string; perfis: PerfilLoja[] }[] => [
@@ -21,9 +22,10 @@ const links = (slug: string): { href: string; label: string; perfis: PerfilLoja[
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessao = await exigirPagina();
-  const b = await getBranding(sessao.tenantId);
+  const [b, teste] = await Promise.all([getBranding(sessao.tenantId), getTeste(sessao.tenantId)]);
   return (
     <div className="min-h-screen bg-gray-50">
+      <FaixaTeste teste={teste} />
       <header className="border-b border-gray-200 bg-white print:hidden">
         <nav className="mx-auto flex max-w-6xl items-center gap-4 overflow-x-auto p-3 sm:px-6">
           <span className="flex items-center gap-2 whitespace-nowrap font-bold text-brand">

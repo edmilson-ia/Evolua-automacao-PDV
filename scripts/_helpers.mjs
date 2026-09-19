@@ -37,7 +37,7 @@ export async function todosUsuarios() {
 export async function estadoReal() {
   const cont = async (t) => (await db.from(t).select("id", { count: "exact", head: true })).count;
   const { data: fantas } = await db.from("produtos").select("id, nome, quantidade, preco_venda").ilike("nome", "fanta%").order("id");
-  const { data: lojas } = await db.from("tenants").select("id, slug, nome_fantasia, ativo, pix_chave, pix_cidade, taxa_debito, taxa_credito");
+  const { data: lojas } = await db.from("tenants").select("id, slug, nome_fantasia, ativo, teste_ate, pix_chave, pix_cidade, taxa_debito, taxa_credito");
   return {
     tenants: JSON.stringify(lojas?.sort((a, b) => a.id.localeCompare(b.id))),
     produtos: await cont("produtos"),

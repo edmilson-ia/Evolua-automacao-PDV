@@ -78,6 +78,7 @@ export default function Pdv({
   larguraCupom,
   tenantId,
   operadorId,
+  testeDias,
 }: {
   branding: Branding;
   pix: PixConfig;
@@ -89,6 +90,8 @@ export default function Pdv({
   larguraCupom: 58 | 80;
   tenantId: string;
   operadorId: string;
+  /** Dias que faltam do teste grátis da loja (null = loja definitiva). */
+  testeDias: number | null;
 }) {
   const router = useRouter();
   const cor = branding.cor_primaria ?? "#2563eb";
@@ -888,6 +891,11 @@ export default function Pdv({
         <div className="text-xs sm:text-sm">
           <span className="text-amber-300">Versão 0.1</span> ·{" "}
           <span className={online ? "text-emerald-300" : "text-red-300"}>● {online ? "On-line" : "Off-line"}</span>
+          {testeDias !== null && (
+            <span className={`ml-2 rounded px-2 py-0.5 text-xs font-semibold ${testeDias <= 2 ? "bg-red-500" : "bg-sky-500"}`}>
+              Teste grátis: {testeDias === 1 ? "último dia" : `${testeDias} dias`}
+            </span>
+          )}
           {offline.fila.length > 0 && (
             <button
               onClick={() => setPainelOffline(true)}

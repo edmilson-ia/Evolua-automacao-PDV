@@ -24,6 +24,16 @@ export default async function LojaLoginPage({
   const sessao = await getSessaoAtiva();
   if (sessao && sessao.perfil !== "super_admin" && sessao.tenantId === loja.id) redirect(paginaInicial(sessao.perfil));
 
+  if (loja.teste_vencido) {
+    return (
+      <CartaoAuth branding={loja} titulo="Teste encerrado" subtitulo="PDV e controle de estoque">
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          O período de teste grátis desta loja terminou. Fale com o suporte para ativar: tudo que foi cadastrado está guardado.
+        </p>
+      </CartaoAuth>
+    );
+  }
+
   if (!loja.ativo) {
     return (
       <CartaoAuth branding={loja} titulo="Loja suspensa" subtitulo="PDV e controle de estoque">

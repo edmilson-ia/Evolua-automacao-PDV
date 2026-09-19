@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Plataforma — Lojas" };
 export default async function PlataformaPage() {
   const sessao = await exigirPaginaPlataforma();
   const [{ data: lojas }, usuarios] = await Promise.all([
-    createServerClient().from("tenants").select("id, slug, nome_fantasia, ativo, criado_em").order("criado_em"),
+    createServerClient().from("tenants").select("id, slug, nome_fantasia, ativo, teste_ate, criado_em").order("criado_em"),
     usuariosPorLoja(),
   ]);
 

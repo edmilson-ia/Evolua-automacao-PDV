@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatarTelefone, mascararTelefone } from "@/lib/telefone";
+import { dataBR, estadoDoTeste } from "@/lib/teste";
 
 export type LojaAdmin = {
   id: string;
   slug: string;
   nome_fantasia: string;
   ativo: boolean;
+  /** Fim do teste grátis (vazio = loja definitiva). */
+  teste_ate: string | null;
   criado_em: string;
   usuarios: { id: string; nome: string; telefone: string | null; perfil: string | null }[];
 };
@@ -21,6 +24,20 @@ async function erroDe(res: Response, padrao: string) {
   return typeof j?.error === "string" ? j.error : padrao;
 }
 
+/** Situação do teste grátis de uma loja: dias restantes, vencido ou (sem selo) definitiva. */
+function SeloTeste({ testeAte }: { testeAte: string | null }) {
+  const estado = estadoDoTeste(testeAte);
+  if (estado.modo === "definitiva") return null;
+  if (estado.modo === "vencido") {
+    return <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">TESTE VENCIDO em {dataBR(estado.venceEm)}</span>;
+  }
+  return (
+    <span className="ml-2 rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">
+      TESTE: {estado.diasRestantes} {estado.diasRestantes === 1 ? "dia" : "dias"} (até {dataBR(estado.venceEm)})
+    </span>
+  );
+}
+
 export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
   const router = useRouter();
   const [nome, setNome] = useState("");
@@ -28,6 +45,8 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
   const [adminNome, setAdminNome] = useState("");
   const [adminTel, setAdminTel] = useState("");
   const [adminSenha, setAdminSenha] = useState("");
+  const [diasTeste, setDiasTeste] = useState("7");
+  const [exemplos, setExemplos] = useState(true);
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -60,8 +79,10 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
         nome_fantasia: nome,
         slug,
         admin: { nome: adminNome, telefone: adminTel, senha: adminSenha },
+        dias_teste: Number(diasTeste),
+        com_exemplos: exemplos && Number(diasTeste) > 0,
       }),
-      `Loja ${nome} criada. Link: /c/${slug.trim().toLowerCase()}/login`,
+      `Loja ${nome} criada${Number(diasTeste) > 0 ? ` com ${diasTeste} dias de teste` : ""}. Link de acesso: /c/${slug.trim().toLowerCase()}/login`,
       "Não foi possível criar a loja",
     );
     if (feito) {
@@ -77,6 +98,28 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
     const acao = l.ativo ? "suspender" : "reativar";
     if (!confirm(`Deseja ${acao} a loja "${l.nome_fantasia}"?${l.ativo ? " Ninguém da loja conseguirá entrar." : ""}`)) return;
     void executar(json(`/api/plataforma/lojas/${l.id}`, "PATCH", { ativo: !l.ativo }), `Loja ${l.ativo ? "suspensa" : "reativada"}.`, "Não foi possível alterar");
+  }
+
+  function prorrogar(l: LojaAdmin) {
+    const resposta = prompt(`Prorrogar o teste de "${l.nome_fantasia}" por quantos dias? (1 a 90)`, "7");
+    if (!resposta) return;
+    void executar(json(`/api/plataforma/lojas/${l.id}`, "PATCH", { acao: "prorrogar", dias: Number(resposta) }), "Teste prorrogado.", "Não foi possível prorrogar");
+  }
+
+  function ativar(l: LojaAdmin) {
+    if (!confirm(`Ativar a loja "${l.nome_fantasia}" de vez? O prazo de teste é removido e ela passa a ser uma loja definitiva.`)) return;
+    void executar(json(`/api/plataforma/lojas/${l.id}`, "PATCH", { acao: "ativar" }), "Loja ativada (sem prazo).", "Não foi possível ativar");
+  }
+
+  async function copiar(texto: string, o_que: string) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setErro("");
+      setOk(`Link ${o_que} copiado: ${texto}`);
+    } catch {
+      setOk("");
+      setErro(`Não consegui copiar sozinho. Link ${o_que}: ${texto}`);
+    }
   }
 
   function redefinirSenha(l: LojaAdmin, u: LojaAdmin["usuarios"][number]) {
@@ -110,6 +153,19 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
             <label htmlFor="l-as" className={label}>Administrador: senha (mín. 8)</label>
             <input id="l-as" type="password" value={adminSenha} onChange={(e) => setAdminSenha(e.target.value)} required minLength={8} autoComplete="new-password" className={input} />
           </div>
+          <div>
+            <label htmlFor="l-dias" className={label}>Período de teste grátis</label>
+            <select id="l-dias" value={diasTeste} onChange={(e) => setDiasTeste(e.target.value)} className={input}>
+              <option value="7">7 dias</option>
+              <option value="14">14 dias</option>
+              <option value="30">30 dias</option>
+              <option value="0">Sem teste (loja definitiva)</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <input type="checkbox" checked={exemplos && Number(diasTeste) > 0} disabled={Number(diasTeste) === 0} onChange={(e) => setExemplos(e.target.checked)} />
+            Já vir com produtos de exemplo (para demonstrar)
+          </label>
         </div>
         <button disabled={ocupado} className="rounded-lg bg-brand px-5 py-2.5 font-semibold text-white disabled:opacity-50">
           Criar loja e administrador
@@ -127,9 +183,17 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
                 <div className="font-semibold">
                   {l.nome_fantasia}
                   {!l.ativo && <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">SUSPENSA</span>}
+                  <SeloTeste testeAte={l.teste_ate} />
                 </div>
                 <div className="text-sm text-gray-500">/c/{l.slug}</div>
               </div>
+              <div className="flex flex-wrap gap-2">
+              {l.teste_ate && (
+                <>
+                  <button onClick={() => prorrogar(l)} disabled={ocupado} className="rounded-lg border border-sky-400 px-3 py-1.5 text-sm font-medium text-sky-700">Prorrogar teste</button>
+                  <button onClick={() => ativar(l)} disabled={ocupado} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white">Ativar (fim do teste)</button>
+                </>
+              )}
               <button
                 onClick={() => alternar(l)}
                 disabled={ocupado}
@@ -137,6 +201,11 @@ export default function GerenciarLojas({ lojas }: { lojas: LojaAdmin[] }) {
               >
                 {l.ativo ? "Suspender" : "Reativar"}
               </button>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-3 text-sm">
+              <button onClick={() => copiar(`${window.location.origin}/c/${l.slug}`, "do catálogo")} className="text-brand hover:underline">Copiar link do catálogo</button>
+              <button onClick={() => copiar(`${window.location.origin}/c/${l.slug}/login`, "de acesso")} className="text-brand hover:underline">Copiar link de acesso</button>
             </div>
             <ul className="mt-3 divide-y divide-gray-100 text-sm">
               {l.usuarios.map((u) => (
