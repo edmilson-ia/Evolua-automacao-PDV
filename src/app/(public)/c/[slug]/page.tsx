@@ -43,6 +43,12 @@ export default async function CatalogoPage({
   const sessao = await getSessao();
   const voltar = sessao && sessao.perfil !== "super_admin" && sessao.tenantId === branding.id ? { href: sessao.perfil === "admin" ? "/dashboard" : "/pdv", rotulo: sessao.perfil === "admin" ? "Voltar ao painel" : "Voltar ao PDV" } : null;
 
+  // Só para o admin desta loja: quantos produtos do catálogo ainda estão sem foto
+  const ehAdminDaLoja = sessao?.perfil === "admin" && sessao.tenantId === branding.id;
+  const semFoto = ehAdminDaLoja
+    ? ((await createServerClient().from("produtos").select("id", { count: "exact", head: true }).eq("tenant_id", branding.id).eq("ativo", true).eq("visivel_catalogo", true).is("imagem_url", null)).count ?? 0)
+    : 0;
+
   // Somente colunas públicas: nunca expor preço de custo nem estoque exato.
   let query = createServerClient()
     .from("produtos")
@@ -95,6 +101,14 @@ export default async function CatalogoPage({
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+        {semFoto > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <span>
+              <strong>{semFoto} {semFoto === 1 ? "produto ainda está" : "produtos ainda estão"} sem foto</strong> no catálogo (só você, administrador, vê este aviso).
+            </span>
+            <Link href="/estoque/importar" className="rounded-lg bg-amber-600 px-3 py-1 font-medium text-white">Importar fotos por planilha</Link>
+          </div>
+        )}
         <form className="mb-4">
           {cat && <input type="hidden" name="cat" value={cat} />}
           <input

@@ -7,7 +7,7 @@ import { criarLoja, criarProduto, criarUsuario, login, chamar, check, executar, 
 
 const json = (r) => r.json().catch(() => null);
 const CAB = "sku;nome;categoria;preco_custo;preco_venda;quantidade;estoque_minimo;unidade;descricao";
-const MAPA_TUDO = { sku: 0, nome: 1, categoria: 2, preco_custo: 3, preco_venda: 4, quantidade: 5, estoque_minimo: 6, unidade: 7, descricao: 8, codigo_barras: null };
+const MAPA_TUDO = { sku: 0, nome: 1, categoria: 2, preco_custo: 3, preco_venda: 4, quantidade: 5, estoque_minimo: 6, unidade: 7, descricao: 8, codigo_barras: null, imagem: null };
 
 async function enviar(cookie, buf, modo, mapa, nome = "planilha.csv") {
   const form = new FormData();

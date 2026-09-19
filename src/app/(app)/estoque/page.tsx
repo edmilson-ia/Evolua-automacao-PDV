@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { exigirPagina } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { brl } from "@/lib/format";
 import { gruposRepetidos } from "@/lib/repetidos";
 import type { Produto } from "@/types/produto";
-import ExcluirProdutoButton from "@/components/estoque/ExcluirProdutoButton";
+import TabelaEstoque from "@/components/estoque/TabelaEstoque";
 
 export const dynamic = "force-dynamic";
 
@@ -85,55 +84,7 @@ export default async function EstoquePage({
           className="w-full rounded-lg border border-gray-300 px-3 py-2" />
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left">
-            <tr>
-              <th className="p-3">Produto</th>
-              <th className="p-3">SKU</th>
-              <th className="p-3 text-right">Custo</th>
-              <th className="p-3 text-right">Venda</th>
-              <th className="p-3 text-right">Qtd</th>
-              <th className="p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {produtos.map((p) => (
-              <tr key={p.id} className="border-t border-gray-100">
-                <td className="p-3 font-medium">
-                  <div className="flex items-center gap-3">
-                    {p.imagem_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imagem_url} alt="" className="h-10 w-10 rounded object-cover" />
-                    ) : (
-                      <span className="flex h-10 w-10 items-center justify-center rounded bg-gray-100 text-gray-400">
-                        {p.nome.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    {p.nome}
-                  </div>
-                </td>
-                <td className="p-3">
-                  {p.sku}
-                  {p.codigo_barras && <div className="text-xs text-gray-500">{p.codigo_barras}</div>}
-                </td>
-                <td className="p-3 text-right">{brl(p.preco_custo)}</td>
-                <td className="p-3 text-right">{brl(p.preco_venda)}</td>
-                <td className={`p-3 text-right ${p.quantidade <= p.estoque_minimo ? "text-red-600 font-semibold" : ""}`}>
-                  {p.quantidade} {p.unidade}
-                </td>
-                <td className="p-3 text-right space-x-3 whitespace-nowrap">
-                  <Link href={`/estoque/${p.id}`} className="text-brand hover:underline">Editar</Link>
-                  <ExcluirProdutoButton id={p.id} nome={p.nome} />
-                </td>
-              </tr>
-            ))}
-            {produtos.length === 0 && (
-              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Nenhum produto cadastrado.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TabelaEstoque produtos={produtos} />
     </main>
   );
 }

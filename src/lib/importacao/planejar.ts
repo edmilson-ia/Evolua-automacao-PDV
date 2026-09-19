@@ -3,7 +3,7 @@ import { chaveNome } from "@/lib/nome";
 import { produtosAtivos } from "@/lib/repetidos";
 import type { ErroLinha, LinhaPlano, LinhaValidada, Plano } from "./tipos";
 
-type Existente = { id: string; sku: string; ativo: boolean; quantidade: number };
+type Existente = { id: string; sku: string; ativo: boolean; quantidade: number; imagem_url: string | null };
 
 const em_blocos = <T,>(lista: T[], n: number) =>
   Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, i * n + n));
@@ -25,7 +25,7 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
   for (const bloco of em_blocos(boas.map((b) => b.dados.sku).filter(Boolean), 100)) {
     const { data, error } = await db
       .from("produtos")
-      .select("id, sku, ativo, quantidade")
+      .select("id, sku, ativo, quantidade, imagem_url")
       .eq("tenant_id", tenantId)
       .in("sku", bloco);
     if (error) throw new Error(error.message);
@@ -53,8 +53,9 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
   }
 
   // Nomes que já existem (produtos ativos) e nomes já vistos neste arquivo, para marcar os repetidos
-  const ativosPorNome = new Map<string, { id: string; nome: string; sku: string }>();
-  for (const p of await produtosAtivos<{ id: string; nome: string; sku: string }>(db, tenantId, "id, nome, sku")) {
+  type Ativo = { id: string; nome: string; sku: string; imagem_url: string | null };
+  const ativosPorNome = new Map<string, Ativo>();
+  for (const p of await produtosAtivos<Ativo>(db, tenantId, "id, nome, sku, imagem_url")) {
     if (!ativosPorNome.has(chaveNome(p.nome))) ativosPorNome.set(chaveNome(p.nome), p);
   }
   const vistosNoArquivo = new Map<string, number>();
@@ -94,7 +95,7 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
       const chave = chaveNome(v.dados.nome);
       const noEstoque = ativosPorNome.get(chave);
       if (acao !== "atualizar") {
-        if (noEstoque && noEstoque.id !== ex?.id) repetido = { motivo: "estoque", com: `${noEstoque.nome.trim()} (SKU ${noEstoque.sku})` };
+        if (noEstoque && noEstoque.id !== ex?.id) repetido = { motivo: "estoque", com: `${noEstoque.nome.trim()} (SKU ${noEstoque.sku})`, produtoId: noEstoque.id, tinhaFoto: !!noEstoque.imagem_url };
         else if (vistosNoArquivo.has(chave)) repetido = { motivo: "arquivo", com: `linha ${vistosNoArquivo.get(chave)}` };
       }
       if (!vistosNoArquivo.has(chave)) vistosNoArquivo.set(chave, v.linha);
@@ -106,6 +107,7 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
       dados: v.dados,
       produtoId: ex?.id ?? null,
       quantidadeAtual: ex ? ex.quantidade : null,
+      tinhaFoto: !!ex?.imagem_url,
       categoriaNova,
     });
   }
@@ -125,13 +127,15 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
  * Tira do plano as linhas repetidas, exceto as que o usuário pediu para importar mesmo assim (`manter`).
  * Sem a lista, o padrão é PULAR todas: quem não escolheu nada nunca cria produto duplicado sem querer.
  */
-export function descartarRepetidos(plano: Plano, manter: Set<number>): { plano: Plano; pulados: number } {
+export function descartarRepetidos(plano: Plano, manter: Set<number>): { plano: Plano; pulados: number; descartados: LinhaPlano[] } {
   const itens = plano.itens.filter((i) => !i.repetido || manter.has(i.linha));
+  const descartados = plano.itens.filter((i) => i.repetido && !manter.has(i.linha));
   const novas = new Map<string, string>();
   for (const i of itens) if (i.categoriaNova && i.dados.categoria) novas.set(i.dados.categoria.toLowerCase(), i.dados.categoria);
   const conta = (acao: LinhaPlano["acao"]) => itens.filter((i) => i.acao === acao).length;
   return {
-    pulados: plano.itens.length - itens.length,
+    pulados: descartados.length,
+    descartados,
     plano: {
       ...plano,
       itens,

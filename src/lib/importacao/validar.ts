@@ -75,6 +75,13 @@ export function validarLinhas(planilha: Planilha, mapa: Mapeamento): LinhaValida
       }
     }
 
+    if (mapeado("imagem")) {
+      const link = texto(pega("imagem"));
+      if (link.length > 2000) erros.push("Link da imagem grande demais");
+      else if (link && !/^https:\/\//i.test(link)) erros.push(`Link da imagem inválido (precisa começar com https://): "${link.slice(0, 40)}"`);
+      else if (link) dados.imagem_link = link; // vazio: não altera
+    }
+
     const numericos = [
       ["preco_custo", "Preço de custo"],
       ["preco_venda", "Preço de venda"],

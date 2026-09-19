@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { exigirApi } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { aplicar } from "@/lib/importacao/aplicar";
+import { aplicar, fotosDosRepetidos } from "@/lib/importacao/aplicar";
 import { lerPlanilha, sugerirMapeamento } from "@/lib/importacao/ler";
 import { descartarRepetidos, planejar } from "@/lib/importacao/planejar";
 import { CAMPOS, LIMITE_BYTES, LIMITE_LINHAS, type Mapeamento } from "@/lib/importacao/tipos";
@@ -80,6 +80,8 @@ export async function POST(req: Request) {
   const manter = z.array(z.number().int().min(2).max(LIMITE_LINHAS + 1)).max(LIMITE_LINHAS).transform((l) => new Set(l)).safeParse(manterBruto);
   if (!manter.success) return erro("Lista de linhas inválida");
 
+  const substituirFotos = form?.get("substituir_fotos") === "1";
+
   const db = createServerClient();
   try {
     const plano = await planejar(db, sessao.tenantId, validarLinhas(planilha, mapa));
@@ -89,15 +91,20 @@ export async function POST(req: Request) {
         totais: plano.totais,
         repetidos: repetidos.slice(0, 500).map((i) => ({ linha: i.linha, acao: i.acao, sku: i.dados.sku, nome: i.dados.nome ?? null, ...i.repetido! })),
         categoriasNovas: plano.categoriasNovas,
-        avisos: plano.avisos,
+        avisos: { ...plano.avisos, linhasComFoto: plano.itens.filter((i) => i.dados.imagem_link).length },
         erros: plano.erros,
         itens: plano.itens.filter((i) => !i.repetido).slice(0, 50).map((i) => ({ linha: i.linha, acao: i.acao, sku: i.dados.sku, nome: i.dados.nome ?? null })),
         totalItens: plano.itens.filter((i) => !i.repetido).length, // sem os repetidos (esses seguem a escolha da tela)
       });
     }
-    const { plano: aImportar, pulados } = descartarRepetidos(plano, manter.data);
-    if (aImportar.itens.length === 0) return erro(pulados ? `Todas as ${pulados} linhas são de produtos repetidos e foram puladas` : "Nenhuma linha válida para importar", 422);
-    return NextResponse.json({ ...(await aplicar(db, sessao, aImportar)), pulados });
+    const { plano: aImportar, pulados, descartados } = descartarRepetidos(plano, manter.data);
+    const fotosDeRepetidos = fotosDosRepetidos(descartados, substituirFotos, []);
+    if (aImportar.itens.length === 0 && fotosDeRepetidos.length === 0) {
+      return erro(pulados ? `Todas as ${pulados} linhas são de produtos repetidos e foram puladas` : "Nenhuma linha válida para importar", 422);
+    }
+    const resultado = await aplicar(db, sessao, aImportar, { substituirFotos });
+    resultado.fotos.push(...fotosDosRepetidos(descartados, substituirFotos, resultado.fotos));
+    return NextResponse.json({ ...resultado, pulados });
   } catch (e) {
     return erro(e instanceof Error ? e.message : "Falha na importação", 500);
   }

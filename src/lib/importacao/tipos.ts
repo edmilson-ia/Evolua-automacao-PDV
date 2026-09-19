@@ -18,6 +18,7 @@ export const CAMPOS = [
   { id: "unidade", rotulo: "Unidade", apelidos: ["unidade", "un", "und"] },
   { id: "descricao", rotulo: "Descrição", apelidos: ["descricao", "detalhes", "observacao"] },
   { id: "codigo_barras", rotulo: "Código de barras", apelidos: ["codigo de barras", "cod de barras", "cod barras", "codbarras", "barras", "ean", "ean13", "gtin"] },
+  { id: "imagem", rotulo: "Link da imagem (foto)", apelidos: ["link imagem", "link da imagem", "url imagem", "url da imagem", "link foto", "link da foto", "url foto", "imagem url", "foto url"] },
 ] as const;
 
 export type CampoId = (typeof CAMPOS)[number]["id"];
@@ -39,6 +40,8 @@ export type DadosLinha = {
   unidade?: string;
   descricao?: string | null;
   codigo_barras?: string;
+  /** Link (https) da foto do produto: baixada DEPOIS da importação, em lotes (POST /api/produtos/imagens). */
+  imagem_link?: string;
 };
 
 export type LinhaValidada = { linha: number; dados: DadosLinha; erros: string[] };
@@ -50,9 +53,14 @@ export type LinhaPlano = {
   produtoId: string | null;
   quantidadeAtual: number | null;
   categoriaNova: boolean;
+  /** O produto que já existe (por SKU) já tem foto. */
+  tinhaFoto: boolean;
   /** Nome igual a outro produto: já existe no estoque ou aparece antes no arquivo. */
-  repetido: { motivo: "estoque" | "arquivo"; com: string } | null;
+  repetido: { motivo: "estoque" | "arquivo"; com: string; produtoId?: string; tinhaFoto?: boolean } | null;
 };
+
+/** Foto a baixar depois da importação. */
+export type FotoPendente = { produto_id: string; linha: number; nome: string; url: string };
 
 export type ErroLinha = { linha: number; sku: string; erro: string };
 

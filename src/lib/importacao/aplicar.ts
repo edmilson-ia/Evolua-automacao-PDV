@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { erroDeGravacao } from "@/lib/produtoErros";
-import { TAMANHO_LOTE, type ErroLinha, type LinhaPlano, type Plano } from "./tipos";
+import { TAMANHO_LOTE, type ErroLinha, type FotoPendente, type LinhaPlano, type Plano } from "./tipos";
 
 export type Autor = { tenantId: string; id: string; nome: string };
 
@@ -10,6 +10,8 @@ export type Resultado = {
   reativados: number;
   categoriasCriadas: number;
   erros: ErroLinha[];
+  /** Fotos a baixar em seguida (a tela chama POST /api/produtos/imagens em lotes). */
+  fotos: FotoPendente[];
 };
 
 const em_blocos = <T,>(lista: T[], n: number) =>
@@ -43,9 +45,12 @@ function colunas(item: LinhaPlano, categorias: Map<string, string>) {
 }
 
 /** Aplica o plano. A loja vem SEMPRE do autor (sessão). Estoque só muda por registrar_movimento. */
-export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): Promise<Resultado> {
+export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano, opcoes: { substituirFotos?: boolean } = {}): Promise<Resultado> {
   const { tenantId } = autor;
-  const resultado: Resultado = { criados: 0, atualizados: 0, reativados: 0, categoriasCriadas: 0, erros: [] };
+  const resultado: Resultado = { criados: 0, atualizados: 0, reativados: 0, categoriasCriadas: 0, erros: [], fotos: [] };
+  const foto = (i: LinhaPlano, produtoId: string) => {
+    if (i.dados.imagem_link) resultado.fotos.push({ produto_id: produtoId, linha: i.linha, nome: i.dados.nome ?? i.dados.sku, url: i.dados.imagem_link });
+  };
   const falha = (i: LinhaPlano, erro: string) => resultado.erros.push({ linha: i.linha, sku: i.dados.sku, erro });
 
   const { criadas, mapa: categorias } = await idsDasCategorias(db, tenantId, plano.categoriasNovas);
@@ -65,6 +70,7 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
       const ids = new Map((data ?? []).map((p) => [p.sku as string, p.id as string]));
       for (const i of lote) {
         resultado.criados++;
+        foto(i, ids.get(i.dados.sku)!);
         if (i.dados.quantidade) ajustes.push({ id: ids.get(i.dados.sku)!, item: i });
       }
       continue;
@@ -75,6 +81,7 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
       if (um.error) falha(i, erroDeGravacao(um.error).message);
       else {
         resultado.criados++;
+        foto(i, um.data.id);
         if (i.dados.quantidade) ajustes.push({ id: um.data.id, item: i });
       }
     }
@@ -90,6 +97,7 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
         if (error) return falha(i, erroDeGravacao(error).message);
         if (i.acao === "reativar") resultado.reativados++;
         else resultado.atualizados++;
+        if (opcoes.substituirFotos || !i.tinhaFoto) foto(i, i.produtoId!);
         if (i.dados.quantidade !== undefined && i.dados.quantidade !== i.quantidadeAtual) ajustes.push({ id: i.produtoId!, item: i });
       }),
     );
@@ -127,4 +135,21 @@ export async function aplicar(db: SupabaseClient, autor: Autor, plano: Plano): P
     detalhe: { criados: resultado.criados, atualizados: resultado.atualizados, reativados: resultado.reativados, categorias_criadas: criadas, erros: resultado.erros.length },
   });
   return resultado;
+}
+
+/**
+ * Linhas puladas por serem repetidas do estoque ainda podem trazer a FOTO: ela vai para o produto que já existe
+ * (se ele não tiver foto, ou se o usuário pediu para substituir). Um produto entra uma vez só.
+ */
+export function fotosDosRepetidos(descartados: LinhaPlano[], substituirFotos: boolean, jaNaLista: FotoPendente[]): FotoPendente[] {
+  const vistos = new Set(jaNaLista.map((f) => f.produto_id));
+  const fotos: FotoPendente[] = [];
+  for (const i of descartados) {
+    const id = i.repetido?.produtoId;
+    if (i.repetido?.motivo !== "estoque" || !id || !i.dados.imagem_link || vistos.has(id)) continue;
+    if (!substituirFotos && i.repetido.tinhaFoto) continue;
+    vistos.add(id);
+    fotos.push({ produto_id: id, linha: i.linha, nome: i.dados.nome ?? i.dados.sku, url: i.dados.imagem_link });
+  }
+  return fotos;
 }

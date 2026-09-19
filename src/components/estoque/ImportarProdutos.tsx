@@ -2,20 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CAMPOS, LIMITE_BYTES, LIMITE_LINHAS, type Acao, type ErroLinha, type Mapeamento } from "@/lib/importacao/tipos";
+import { CAMPOS, LIMITE_BYTES, LIMITE_LINHAS, type Acao, type ErroLinha, type FotoPendente, type Mapeamento } from "@/lib/importacao/tipos";
+import ProgressoFotos from "./ProgressoFotos";
 
 type Leitura = { colunas: string[]; amostra: (string | number)[][]; total: number; sugestao: Mapeamento };
 type Previa = {
   totais: { criar: number; atualizar: number; reativar: number; erros: number; repetidos: number };
   repetidos: Repetido[];
   categoriasNovas: string[];
-  avisos: { semSku: number; semPreco: number };
+  avisos: { semSku: number; semPreco: number; linhasComFoto: number };
   erros: ErroLinha[];
   itens: { linha: number; acao: Acao; sku: string; nome: string | null }[];
   totalItens: number;
 };
 type Repetido = { linha: number; acao: Acao; sku: string; nome: string | null; motivo: "estoque" | "arquivo"; com: string };
-type Resultado = { criados: number; atualizados: number; reativados: number; pulados: number; categoriasCriadas: number; erros: ErroLinha[] };
+type Resultado = { criados: number; atualizados: number; reativados: number; pulados: number; categoriasCriadas: number; erros: ErroLinha[]; fotos: FotoPendente[] };
 
 const ROTULO_ACAO: Record<Acao, string> = { criar: "Novo", atualizar: "Atualiza", reativar: "Reativa" };
 
@@ -27,10 +28,11 @@ export default function ImportarProdutos() {
   const [resultado, setResultado] = useState<Resultado | null>(null);
   // Linhas repetidas que serão PULADAS (todas começam marcadas; desmarcar = importar mesmo assim)
   const [puladas, setPuladas] = useState<Set<number>>(new Set());
+  const [substituirFotos, setSubstituirFotos] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
 
-  async function chamar<T>(modo: "ler" | "previa" | "confirmar", arq: File, mapeamento?: Mapeamento, manter?: number[]): Promise<T | null> {
+  async function chamar<T>(modo: "ler" | "previa" | "confirmar", arq: File, mapeamento?: Mapeamento, manter?: number[], substituir?: boolean): Promise<T | null> {
     setOcupado(true);
     setErro("");
     try {
@@ -39,6 +41,7 @@ export default function ImportarProdutos() {
       form.set("modo", modo);
       if (mapeamento) form.set("mapeamento", JSON.stringify(mapeamento));
       if (manter) form.set("manter", JSON.stringify(manter));
+      if (substituir) form.set("substituir_fotos", "1");
       const r = await fetch("/api/produtos/importar", { method: "POST", body: form });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -84,7 +87,7 @@ export default function ImportarProdutos() {
   async function confirmar() {
     if (!arquivo) return;
     const manter = (previa?.repetidos ?? []).map((r) => r.linha).filter((l) => !puladas.has(l));
-    const r = await chamar<Resultado>("confirmar", arquivo, mapa, manter);
+    const r = await chamar<Resultado>("confirmar", arquivo, mapa, manter, substituirFotos);
     if (r) {
       setResultado(r);
       setPrevia(null);
@@ -107,6 +110,8 @@ export default function ImportarProdutos() {
   const puladasDe = (acao: Acao) => previa?.repetidos.filter((r) => r.acao === acao && puladas.has(r.linha)).length ?? 0;
   // Quantos entram de fato: tudo que é válido, menos os repetidos marcados para pular
   const aImportar = previa ? previa.totalItens + previa.repetidos.filter((r) => !puladas.has(r.linha)).length : 0;
+  // Nada novo para gravar, mas há linhas repetidas com foto: dá para aproveitar só as fotos
+  const soFotos = !!previa && aImportar === 0 && previa.repetidos.some((r) => r.motivo === "estoque") && previa.avisos.linhasComFoto > 0;
 
   return (
     <div className="space-y-5">
@@ -191,6 +196,18 @@ export default function ImportarProdutos() {
               <strong>Categorias que serão criadas:</strong> {previa.categoriasNovas.join(", ")}
             </p>
           )}
+          {previa.avisos.linhasComFoto > 0 && (
+            <div className="mb-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+              <p>
+                {previa.avisos.linhasComFoto} linhas têm link de foto. As fotos são baixadas <strong>depois</strong> de importar, em lotes
+                (pode levar alguns minutos: deixe a página aberta). Linhas repetidas puladas aproveitam a foto para o produto que já existe, se ele ainda não tiver.
+              </p>
+              <label className="mt-2 flex items-center gap-2">
+                <input type="checkbox" checked={substituirFotos} onChange={(e) => setSubstituirFotos(e.target.checked)} />
+                Substituir as fotos que os produtos já têm
+              </label>
+            </div>
+          )}
           {(previa.avisos.semSku > 0 || previa.avisos.semPreco > 0) && (
             <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               {previa.avisos.semSku > 0 && <p>{previa.avisos.semSku} linhas sem SKU receberão um código automático (AUTO-…).</p>}
@@ -251,10 +268,10 @@ export default function ImportarProdutos() {
           )}
           <button
             onClick={confirmar}
-            disabled={aImportar === 0 || ocupado}
+            disabled={(aImportar === 0 && !soFotos) || ocupado}
             className="mt-4 rounded-lg bg-brand px-4 py-2 font-medium text-white disabled:opacity-50"
           >
-            Confirmar importação de {aImportar} {aImportar === 1 ? "produto" : "produtos"}
+            {soFotos ? "Aproveitar só as fotos dos produtos que já existem" : `Confirmar importação de ${aImportar} ${aImportar === 1 ? "produto" : "produtos"}`}
           </button>
         </section>
       )}
@@ -271,6 +288,7 @@ export default function ImportarProdutos() {
           {resultado.erros.length > 0 && (
             <div className="mt-3"><TabelaErros erros={resultado.erros} titulo="Linhas que não puderam ser gravadas" /></div>
           )}
+          {resultado.fotos.length > 0 && <ProgressoFotos fotos={resultado.fotos} substituir={substituirFotos} />}
           <Link href="/estoque" className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 font-medium text-white">Ver estoque</Link>
         </section>
       )}
