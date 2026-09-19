@@ -25,11 +25,15 @@ export async function POST(req: Request) {
   if (!acesso.ok) return acesso.resposta;
   const { sessao } = acesso;
 
+  // O envio grande é cortado antes de chegar aqui: avisa pelo tamanho declarado, sem tentar ler
+  if (Number(req.headers.get("content-length")) > LIMITE_BYTES + 100_000) {
+    return erro(`Arquivo grande demais (máximo ${LIMITE_BYTES / 1024 / 1024} MB). Se a planilha tem imagens, baixe só o texto: no Google Planilhas use Arquivo → Fazer download → CSV.`, 413);
+  }
   const form = await req.formData().catch(() => null);
   const arquivo = form?.get("arquivo");
   if (!(arquivo instanceof File)) return erro("Envie um arquivo CSV ou XLSX");
   if (arquivo.size === 0) return erro("O arquivo está vazio");
-  if (arquivo.size > LIMITE_BYTES) return erro(`Arquivo grande demais (máximo ${LIMITE_BYTES / 1024 / 1024} MB)`, 413);
+  if (arquivo.size > LIMITE_BYTES) return erro(`Arquivo grande demais (máximo ${LIMITE_BYTES / 1024 / 1024} MB). Se a planilha tem imagens, baixe só o texto: no Google Planilhas use Arquivo → Fazer download → CSV.`, 413);
 
   let planilha;
   try {

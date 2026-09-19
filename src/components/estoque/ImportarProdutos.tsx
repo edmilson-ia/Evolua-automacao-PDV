@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CAMPOS, LIMITE_LINHAS, type Acao, type ErroLinha, type Mapeamento } from "@/lib/importacao/tipos";
+import { CAMPOS, LIMITE_BYTES, LIMITE_LINHAS, type Acao, type ErroLinha, type Mapeamento } from "@/lib/importacao/tipos";
 
 type Leitura = { colunas: string[]; amostra: (string | number)[][]; total: number; sugestao: Mapeamento };
 type Previa = {
@@ -56,6 +56,10 @@ export default function ImportarProdutos() {
     setResultado(null);
     setErro("");
     if (!arq) return;
+    if (arq.size > LIMITE_BYTES) {
+      setErro(`Arquivo de ${(arq.size / 1024 / 1024).toFixed(0)} MB: o máximo é ${LIMITE_BYTES / 1024 / 1024} MB. Se a planilha tem imagens, baixe só o texto: no Google Planilhas use Arquivo → Fazer download → CSV.`);
+      return;
+    }
     const l = await chamar<Leitura>("ler", arq);
     if (l) {
       setLeitura(l);
