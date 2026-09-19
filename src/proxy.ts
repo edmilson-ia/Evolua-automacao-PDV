@@ -24,13 +24,16 @@ const PUBLICO = [
 const ehPlataforma = (p: string) => p === "/plataforma" || p.startsWith("/plataforma/") || p.startsWith("/api/plataforma/");
 
 // O que o perfil "operador" (caixa) pode acessar. Todo o resto é só do administrador da loja.
-const OPERADOR_PAGINAS = [/^\/pdv$/, /^\/pdv\/vendas$/, /^\/clientes(\/novo)?$/];
+const OPERADOR_PAGINAS = [/^\/pdv$/, /^\/pdv\/vendas$/, /^\/clientes(\/novo)?$/, /^\/caixa(\/[0-9a-f-]{36})?$/i];
 const OPERADOR_API: { metodo: string; caminho: RegExp }[] = [
   { metodo: "GET", caminho: /^\/api\/produtos$/ },
   { metodo: "GET", caminho: /^\/api\/vendas$/ },
   { metodo: "POST", caminho: /^\/api\/vendas$/ },
   { metodo: "GET", caminho: /^\/api\/clientes$/ },
   { metodo: "POST", caminho: /^\/api\/clientes$/ },
+  { metodo: "GET", caminho: /^\/api\/caixa$/ },
+  { metodo: "POST", caminho: /^\/api\/caixa$/ },
+  { metodo: "POST", caminho: /^\/api\/caixa\/[0-9a-f-]{36}\/(movimentos|fechar)$/i },
 ];
 
 const negar = (req: NextRequest, ehApi: boolean, destino: string) =>

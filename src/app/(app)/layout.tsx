@@ -9,6 +9,7 @@ const links = (slug: string): { href: string; label: string; perfis: PerfilLoja[
   { href: "/dashboard", label: "Dashboard", perfis: ["admin"] },
   { href: "/pdv", label: "PDV", perfis: ["admin", "operador"] },
   { href: "/pdv/vendas", label: "Vendas", perfis: ["admin", "operador"] },
+  { href: "/caixa", label: "Caixa", perfis: ["admin", "operador"] },
   { href: "/estoque", label: "Estoque", perfis: ["admin"] },
   { href: "/clientes", label: "Clientes", perfis: ["admin", "operador"] },
   { href: `/c/${slug}`, label: "Catálogo", perfis: ["admin", "operador"] },

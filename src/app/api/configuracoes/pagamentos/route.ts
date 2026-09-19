@@ -12,6 +12,7 @@ const schema = z.object({
   pix_cidade: opcional(15, "Cidade: no máximo 15 caracteres (padrão do PIX)"),
   taxa_debito: z.coerce.number().min(0, "Taxa inválida").max(30, "Taxa acima de 30%"),
   taxa_credito: z.coerce.number().min(0, "Taxa inválida").max(30, "Taxa acima de 30%"),
+  caixa_obrigatorio: z.boolean(),
 });
 
 export async function PUT(req: Request) {

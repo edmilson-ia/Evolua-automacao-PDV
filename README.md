@@ -9,6 +9,7 @@ Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 �
 | Módulo | Recursos |
 |---|---|
 | **PDV** (`/pdv`) | Modo caixa em tela cheia; leitura por código de barras/SKU; `3x produto` para quantidade; atalhos F4/F6/F8/F9; pagamento em Dinheiro, Débito, Crédito e **PIX (QR Code)**; troco; desconto; recibo imprimível; aviso de estoque insuficiente |
+| **Caixa** (`/caixa`, PDV → menu) | Abertura com valor inicial, sangria e suprimento (com motivo), fechamento **cego** com conferência por forma de pagamento (esperado × contado × diferença) e relatório imprimível. Um caixa aberto por operador e por terminal. Obrigatório para vender só se a loja ligar a opção em Pagamentos |
 | **Vendas** (`/pdv/vendas`) | Histórico por dia com **quem vendeu** (o operador vê só as próprias vendas; o admin vê todas), totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
 | **Estoque** (`/estoque`) | CRUD de produtos com foto e categoria, alerta de estoque baixo, **movimentos** (entrada, saída e ajuste de inventário) |
 | **Dashboard** (`/dashboard`) | Faturamento bruto/líquido, ticket médio, gráfico por hora/dia, mais vendidos, valor em estoque, **margem de lucro**, **vendas por operador** |
@@ -41,6 +42,7 @@ Rode, **nesta ordem**, os arquivos de `supabase/migrations/`:
 5. `0005_quem_vendeu.sql` — operador em vendas e movimentos, tabela `auditoria`
 6. `0006_multi_loja.sql` — lojas com `slug`, PIX/taxas por loja, clientes, RLS
 7. `0007_venda_cliente_entrega.sql` — cliente e entrega na venda
+8. `0008_caixa.sql` — abertura/fechamento de caixa, sangria e suprimento
 
 ### 2) Variáveis de ambiente (`.env.local`)
 
@@ -92,6 +94,7 @@ Scripts de teste (rodam contra o servidor local, criam só dados "TESTE" e apaga
 ```bash
 node --env-file=.env.local scripts/test-quem-vendeu.mjs
 node --env-file=.env.local scripts/test-multi-loja.mjs   # isolamento entre lojas
+node --env-file=.env.local scripts/test-caixa.mjs        # caixa (valores, permissões, concorrência)
 ```
 
 ## Publicação e app no celular

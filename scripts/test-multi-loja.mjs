@@ -188,9 +188,9 @@ async function principal() {
   check("produto da A aceita imagem da própria loja (201)", comImagem.status === 201);
 
   console.log("\n--- Pagamentos por loja (PIX e taxas) ---");
-  check("operador NÃO altera pagamentos (403)", (await enviar(cOpA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "x", pix_cidade: "y", taxa_debito: 1, taxa_credito: 1 })).status === 403);
-  check("admin A altera PIX e taxas (200)", (await enviar(cAdminA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "teste-a2@pix.local", pix_cidade: "CIDADE A", taxa_debito: "1,5".replace(",", "."), taxa_credito: 3 })).status === 200);
-  check("taxa acima de 30% é recusada (400)", (await enviar(cAdminA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "", pix_cidade: "", taxa_debito: 31, taxa_credito: 3 })).status === 400);
+  check("operador NÃO altera pagamentos (403)", (await enviar(cOpA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "x", pix_cidade: "y", taxa_debito: 1, taxa_credito: 1, caixa_obrigatorio: false })).status === 403);
+  check("admin A altera PIX e taxas (200)", (await enviar(cAdminA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "teste-a2@pix.local", pix_cidade: "CIDADE A", taxa_debito: "1,5".replace(",", "."), taxa_credito: 3, caixa_obrigatorio: false })).status === 200);
+  check("taxa acima de 30% é recusada (400)", (await enviar(cAdminA, "/api/configuracoes/pagamentos", "PUT", { pix_chave: "", pix_cidade: "", taxa_debito: 31, taxa_credito: 3, caixa_obrigatorio: false })).status === 400);
   const { data: tA } = await db.from("tenants").select("pix_chave, taxa_debito").eq("id", A.id).single();
   const { data: tB } = await db.from("tenants").select("pix_chave, taxa_debito").eq("id", B.id).single();
   check("configuração da A mudou e a da B NÃO", tA.pix_chave === "teste-a2@pix.local" && Number(tA.taxa_debito) === 1.5 && tB.pix_chave === "teste-b@pix.local" && Number(tB.taxa_debito) === 4);

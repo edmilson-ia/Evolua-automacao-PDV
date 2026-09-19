@@ -13,6 +13,7 @@ export default function FormPagamentos({ inicial }: { inicial: ConfigPagamento }
   const [pixCidade, setPixCidade] = useState(inicial.pix_cidade);
   const [debito, setDebito] = useState(String(inicial.debito));
   const [credito, setCredito] = useState(String(inicial.credito));
+  const [caixaObrigatorio, setCaixaObrigatorio] = useState(inicial.caixa_obrigatorio);
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -32,6 +33,7 @@ export default function FormPagamentos({ inicial }: { inicial: ConfigPagamento }
           // Aceita vírgula decimal (2,5)
           taxa_debito: debito.replace(",", "."),
           taxa_credito: credito.replace(",", "."),
+          caixa_obrigatorio: caixaObrigatorio,
         }),
       });
       const j = await res.json().catch(() => null);
@@ -77,6 +79,20 @@ export default function FormPagamentos({ inicial }: { inicial: ConfigPagamento }
           Usadas só para calcular o valor líquido no histórico e no dashboard (não aparecem no recibo do cliente).
           Se mudar a taxa, o histórico antigo é recalculado com a nova.
         </p>
+      </section>
+
+      <section className="space-y-2 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+        <h2 className="font-semibold">Caixa</h2>
+        <label className="flex items-start gap-3">
+          <input type="checkbox" checked={caixaObrigatorio} onChange={(e) => setCaixaObrigatorio(e.target.checked)} className="mt-1 h-5 w-5" />
+          <span>
+            <span className="font-medium">Exigir caixa aberto para vender</span>
+            <span className="block text-xs text-gray-500">
+              Desligado: o caixa é opcional. Ligado: o PDV só vende depois de abrir o caixa (valor inicial), e o fechamento
+              confere o que foi vendido por forma de pagamento.
+            </span>
+          </span>
+        </label>
       </section>
 
       {erro && (

@@ -47,18 +47,19 @@ export const getLojaPorSlug = cache(async (slug: string): Promise<LojaPublica | 
   return data ?? null;
 });
 
-export type ConfigPagamento = { pix_chave: string; pix_cidade: string } & TaxasCartao;
+export type ConfigPagamento = { pix_chave: string; pix_cidade: string; caixa_obrigatorio: boolean } & TaxasCartao;
 
-/** PIX e taxas de cartão da loja (dados internos: nunca vão para telas públicas). */
+/** PIX, taxas de cartão e regra do caixa da loja (dados internos: nunca vão para telas públicas). */
 export async function getConfigPagamento(tenantId: string): Promise<ConfigPagamento> {
   const { data } = await createServerClient()
     .from("tenants")
-    .select("pix_chave, pix_cidade, taxa_debito, taxa_credito")
+    .select("pix_chave, pix_cidade, taxa_debito, taxa_credito, caixa_obrigatorio")
     .eq("id", tenantId)
     .single();
   return {
     pix_chave: data?.pix_chave ?? "",
     pix_cidade: data?.pix_cidade ?? "",
+    caixa_obrigatorio: data?.caixa_obrigatorio === true,
     debito: Number(data?.taxa_debito ?? 0),
     credito: Number(data?.taxa_credito ?? 0),
   };

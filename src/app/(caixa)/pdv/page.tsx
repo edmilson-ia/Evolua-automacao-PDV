@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Pdv from "@/components/pdv/Pdv";
 import { exigirPagina } from "@/lib/auth";
+import { getCaixaAberto } from "@/lib/caixa";
 import { getBranding, getConfigPagamento } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,11 @@ export async function generateMetadata(): Promise<Metadata> {
 // Modo caixa: tela cheia, sem o menu do painel (fica no hambúrguer do próprio PDV).
 export default async function PdvPage() {
   const sessao = await exigirPagina(); // admin e operador
-  const [branding, config] = await Promise.all([getBranding(sessao.tenantId), getConfigPagamento(sessao.tenantId)]);
+  const [branding, config, caixa] = await Promise.all([
+    getBranding(sessao.tenantId),
+    getConfigPagamento(sessao.tenantId),
+    getCaixaAberto(sessao.tenantId, sessao.id),
+  ]);
   const pix = { chave: config.pix_chave, cidade: config.pix_cidade };
-  return <Pdv branding={branding} pix={pix} operador={sessao.nome} perfil={sessao.perfil} />;
+  return <Pdv branding={branding} pix={pix} operador={sessao.nome} perfil={sessao.perfil} caixa={caixa} caixaObrigatorio={config.caixa_obrigatorio} />;
 }

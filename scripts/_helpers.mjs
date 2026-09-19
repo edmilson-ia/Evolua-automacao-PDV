@@ -120,6 +120,7 @@ export async function limpar() {
     // usuários criados pela API (onboarding) também são da loja de teste
     for (const u of await todosUsuarios()) if (criados.lojas.includes(u.app_metadata?.tenant_id)) criados.usuarios.push(u.id);
     await db.from("auditoria").delete().in("tenant_id", criados.lojas);
+    await db.from("vendas").delete().in("tenant_id", criados.lojas); // antes dos caixas (vendas.caixa_id)
     await db.from("tenants").delete().in("id", criados.lojas);
   }
   for (const id of new Set(criados.usuarios)) await auth(`/admin/users/${id}`, { method: "DELETE" });

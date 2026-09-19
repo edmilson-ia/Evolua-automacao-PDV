@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import LogoutButton from "@/components/auth/LogoutButton";
+import AbrirCaixa from "@/components/caixa/AbrirCaixa";
+import FecharCaixa from "@/components/caixa/FecharCaixa";
+import ModalCaixa from "@/components/caixa/ModalCaixa";
+import MovimentoCaixa from "@/components/caixa/MovimentoCaixa";
 import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 import { brl } from "@/lib/format";
 import { gerarPayloadPix, gerarTxid, type PixConfig } from "@/lib/pix";
 import type { Perfil } from "@/lib/session";
 import { formatarTelefone } from "@/lib/telefone";
 import type { Branding } from "@/lib/tenant";
+import type { CaixaAberto } from "@/types/caixa";
 import type { Cliente } from "@/types/cliente";
 import type { Produto } from "@/types/produto";
 import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento } from "@/types/venda";
@@ -41,13 +47,21 @@ export default function Pdv({
   pix,
   operador,
   perfil,
+  caixa,
+  caixaObrigatorio,
 }: {
   branding: Branding;
   pix: PixConfig;
   operador: string;
   perfil: Perfil;
+  /** Caixa aberto de quem está logado (null = sem caixa aberto). */
+  caixa: CaixaAberto | null;
+  caixaObrigatorio: boolean;
 }) {
+  const router = useRouter();
   const cor = branding.cor_primaria ?? "#2563eb";
+  // Loja que exige caixa: sem caixa aberto o PDV fica travado na tela de abertura (o servidor também recusa a venda)
+  const bloqueado = caixaObrigatorio && !caixa;
 
   const [carrinho, setCarrinho] = useState<CartItem[]>([]);
   const [selecionado, setSelecionado] = useState<number | null>(null);
@@ -72,6 +86,7 @@ export default function Pdv({
 
   const [menuAberto, setMenuAberto] = useState(false);
   const [clienteAberto, setClienteAberto] = useState(false);
+  const [janelaCaixa, setJanelaCaixa] = useState<"abrir" | "movimento" | "fechar" | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [entrega, setEntrega] = useState(false);
   const [enderecoEntrega, setEnderecoEntrega] = useState("");
@@ -301,6 +316,7 @@ export default function Pdv({
   }
 
   function abrirPagamento() {
+    if (bloqueado) return;
     if (carrinho.length === 0) {
       setAviso({ tipo: "erro", texto: "Adicione ao menos um produto antes de finalizar" });
       return;
@@ -364,7 +380,7 @@ export default function Pdv({
   // ---------- atalhos globais (F4 finalizar, F6 produto, F7 cliente, F8 remover, F9 cancelar) ----------
   useEffect(() => {
     teclasRef.current = (e: KeyboardEvent) => {
-      if (vendaFeita || clienteAberto) return; // a consulta de cliente cuida das próprias teclas
+      if (vendaFeita || clienteAberto || janelaCaixa || bloqueado) return; // as janelas cuidam das próprias teclas
       if (pagando) {
         if (e.key === "Escape") setPagando(false);
         return;
@@ -430,7 +446,7 @@ export default function Pdv({
       <header className="relative z-30 flex items-center gap-3 px-3 py-2 text-white" style={{ background: cor }}>
         {marca}
         <div className="min-w-0 flex-1 text-center leading-tight">
-          <div className="text-sm sm:text-lg">PDV Nº 1 | Venda à vista</div>
+          <div className="text-sm sm:text-lg">{caixa ? `${caixa.terminal} | Caixa aberto` : "PDV | Venda à vista"}</div>
           <div className="truncate text-lg font-semibold uppercase text-amber-300 sm:text-2xl">
             {branding.nome_fantasia}
           </div>
@@ -462,6 +478,23 @@ export default function Pdv({
                 {l.label}
               </Link>
             ))}
+            <div className="border-t border-gray-100">
+              {caixa ? (
+                <>
+                  <button onClick={() => { setMenuAberto(false); setJanelaCaixa("movimento"); }} className="block w-full px-4 py-3 text-left hover:bg-gray-100">
+                    Sangria / Suprimento
+                  </button>
+                  <button onClick={() => { setMenuAberto(false); setJanelaCaixa("fechar"); }} className="block w-full px-4 py-3 text-left font-medium text-red-600 hover:bg-gray-100">
+                    Fechar caixa
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => { setMenuAberto(false); setJanelaCaixa("abrir"); }} className="block w-full px-4 py-3 text-left font-medium text-emerald-700 hover:bg-gray-100">
+                  Abrir caixa
+                </button>
+              )}
+              <Link href="/caixa" className="block px-4 py-3 hover:bg-gray-100">Caixas e relatórios</Link>
+            </div>
             <InstallPwaButton className="block w-full border-t border-gray-100 px-4 py-3 text-left font-medium text-brand hover:bg-gray-100" />
             <LogoutButton className="block w-full border-t border-gray-100 px-4 py-3 text-left text-red-600 hover:bg-gray-100">
               Sair ({operador})
@@ -738,6 +771,41 @@ export default function Pdv({
         <div className="hidden text-xs text-white/80 sm:block">{branding.nome_fantasia} • PDV</div>
         <div className="text-2xl font-semibold tabular-nums text-amber-300 sm:text-3xl">{hora}</div>
       </footer>
+
+      {/* ===== Caixa: abrir (obrigatório = sem como dispensar), sangria/suprimento e fechar ===== */}
+      {!caixa && (bloqueado || janelaCaixa === "abrir") && (
+        <ModalCaixa titulo="Abrir caixa" onFechar={bloqueado ? undefined : () => setJanelaCaixa(null)}>
+          <AbrirCaixa
+            obrigatorio={caixaObrigatorio}
+            onAberto={() => {
+              setJanelaCaixa(null);
+              router.refresh();
+            }}
+          />
+          {bloqueado && (
+            <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
+              <Link href="/caixa" className="font-medium text-brand hover:underline">Ver caixas</Link>
+              <LogoutButton className="font-medium text-red-600 hover:underline">Sair ({operador})</LogoutButton>
+            </div>
+          )}
+        </ModalCaixa>
+      )}
+      {caixa && janelaCaixa === "movimento" && (
+        <ModalCaixa titulo="Sangria / Suprimento" onFechar={() => setJanelaCaixa(null)}>
+          <MovimentoCaixa
+            caixaId={caixa.id}
+            onConcluido={() => {
+              setJanelaCaixa(null);
+              router.refresh();
+            }}
+          />
+        </ModalCaixa>
+      )}
+      {caixa && janelaCaixa === "fechar" && (
+        <ModalCaixa titulo="Fechar caixa" onFechar={() => setJanelaCaixa(null)}>
+          <FecharCaixa caixaId={caixa.id} />
+        </ModalCaixa>
+      )}
 
       {/* ===== Pesquisar cliente (só consulta) ===== */}
       {clienteAberto && (
