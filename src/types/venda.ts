@@ -26,6 +26,8 @@ export type Venda = {
   cliente_telefone?: string | null;
   entrega?: boolean;
   entrega_endereco?: string | null;
+  /** Venda feita sem internet e enviada depois (migration 0010). */
+  offline?: boolean;
   /** Preenchidos quando a venda é cancelada (migration 0004). */
   cancelada_em?: string | null;
   motivo_cancelamento?: string | null;

@@ -25,6 +25,15 @@ export default async function EstoquePage({
   const { data } = await query;
   const produtos = (data ?? []) as Produto[];
   const grupos = await gruposRepetidos(createServerClient(), sessao.tenantId);
+  // Estoque negativo = venda feita sem internet de produto que já tinha acabado: precisa de conferência
+  const { data: negativos } = await createServerClient()
+    .from("produtos")
+    .select("id, nome, quantidade, unidade")
+    .eq("tenant_id", sessao.tenantId)
+    .eq("ativo", true)
+    .lt("quantidade", 0)
+    .order("quantidade")
+    .limit(50);
   const baixos = produtos.filter((p) => p.quantidade <= p.estoque_minimo);
 
   return (
@@ -43,6 +52,17 @@ export default async function EstoquePage({
           </Link>
         </div>
       </div>
+
+      {(negativos?.length ?? 0) > 0 && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          <strong>Estoque negativo ({negativos!.length}):</strong>{" "}
+          {negativos!.map((p) => `${p.nome.trim()} (${Number(p.quantidade)} ${p.unidade})`).join(", ")}.
+          <div className="mt-1 text-xs">
+            Aconteceu porque uma venda feita sem internet chegou depois de o produto acabar. Confira a contagem real e ajuste em{" "}
+            <Link href="/estoque/movimentos" className="font-medium underline">Movimentar estoque</Link>.
+          </div>
+        </div>
+      )}
 
       {baixos.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

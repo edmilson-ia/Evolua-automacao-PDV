@@ -15,6 +15,11 @@ const vendaSchema = z.object({
   cliente_id: z.string().uuid().nullish(),
   entrega: z.boolean().default(false),
   entrega_endereco: z.string().trim().max(200, "Endereço muito longo (máx. 200)").nullish(),
+  // Venda sem internet: a chave (uuid gerado no aparelho) faz o reenvio da MESMA venda não duplicar; `offline` registra a
+  // venda mesmo sem estoque (fica negativo) e `criado_em` é a hora real (o banco limita a 7 dias atrás)
+  chave: z.string().uuid().nullish(),
+  offline: z.boolean().default(false),
+  criado_em: z.string().datetime({ offset: true }).nullish(),
 });
 
 const SELECT_VENDA = "*, itens_venda(id, quantidade, preco_unitario, subtotal, produtos(nome, unidade))";
@@ -61,6 +66,9 @@ export async function POST(req: Request) {
     p_cliente_id: v.cliente_id ?? null,
     p_entrega: v.entrega,
     p_entrega_endereco: v.entrega ? (v.entrega_endereco ?? null) : null,
+    p_chave: v.chave ?? null,
+    p_offline: v.offline,
+    p_criado_em: v.offline ? (v.criado_em ?? null) : null,
   });
   if (error) {
     // Erros de regra (estoque insuficiente etc.) vêm de raise exception (P0001)

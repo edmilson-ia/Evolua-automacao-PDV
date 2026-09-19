@@ -22,5 +22,5 @@ export default async function PdvPage() {
     getConfigImpressao(sessao.tenantId),
   ]);
   const pix = { chave: config.pix_chave, cidade: config.pix_cidade };
-  return <Pdv branding={branding} pix={pix} operador={sessao.nome} perfil={sessao.perfil} caixa={caixa} caixaObrigatorio={config.caixa_obrigatorio} larguraCupom={impressao.largura_cupom} />;
+  return <Pdv branding={branding} pix={pix} operador={sessao.nome} perfil={sessao.perfil} caixa={caixa} caixaObrigatorio={config.caixa_obrigatorio} larguraCupom={impressao.largura_cupom} tenantId={sessao.tenantId} operadorId={sessao.id} />;
 }

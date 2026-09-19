@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { parseValor } from "@/lib/format";
+import { contarPendentesDoCaixa } from "@/lib/offline/armazem";
 
 const input = "w-full rounded-lg border-2 border-gray-300 px-3 py-2 text-lg text-right outline-none focus:border-sky-500";
 
@@ -23,6 +24,15 @@ export default function FecharCaixa({ caixaId }: { caixaId: string }) {
     const din = parseValor(dinheiro);
     if (din === null) {
       setErro("Conte o dinheiro do caixa e informe o valor (pode ser 0)");
+      return;
+    }
+    // Venda feita sem internet ainda neste aparelho: fechar agora deixaria o relatório do caixa sem ela
+    const pendentes = await contarPendentesDoCaixa(caixaId).catch(() => 0);
+    if (pendentes > 0) {
+      setErro(
+        `Há ${pendentes} ${pendentes === 1 ? "venda feita sem internet aguardando envio" : "vendas feitas sem internet aguardando envio"} neste aparelho. ` +
+          "Conecte à internet e envie antes de fechar o caixa (botão de vendas aguardando no rodapé do PDV).",
+      );
       return;
     }
     if (!confirm("Fechar o caixa agora? Depois de fechado ele não pode ser reaberto.")) return;

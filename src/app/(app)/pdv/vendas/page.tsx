@@ -115,6 +115,7 @@ export default async function HistoricoVendasPage({
                   <span className="text-sm">
                     {FORMA_LABEL[v.forma_pagamento]}
                     {v.entrega && <span className="ml-2 rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">ENTREGA</span>}
+                    {v.offline && <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">OFFLINE</span>}
                     {cancelada && <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">CANCELADA</span>}
                   </span>
                   <span className="text-right">

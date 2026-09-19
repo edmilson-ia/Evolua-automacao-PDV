@@ -22,7 +22,11 @@ import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento } from "@/types/venda";
 import type { Venda } from "@/types/venda";
 import BuscaCliente from "./BuscaCliente";
 import { tocarBeep } from "@/lib/beep";
+import { baixarEstoqueLocal, buscarNoCatalogo, contarCatalogo, enfileirar, type VendaPendente } from "@/lib/offline/armazem";
+import { fetchComTimeout } from "@/lib/offline/sincronizar";
+import PendentesOffline from "./PendentesOffline";
 import Recibo from "./Recibo";
+import { useVendasOffline } from "./useVendasOffline";
 
 type CartItem = { produto: Produto; quantidade: number };
 type Forma = FormaPagamento;
@@ -32,6 +36,23 @@ type Aviso = {
   /** Sugestão de correção: adicionar o máximo disponível. */
   maximo?: { produto: Produto; qtd: number };
 };
+
+/** Busca na cópia do catálogo guardada no aparelho (sem internet). null = este aparelho ainda não baixou o catálogo. */
+async function buscarLocal(tenantId: string, termo: string): Promise<Produto[] | null> {
+  try {
+    return (await contarCatalogo(tenantId)) > 0 ? await buscarNoCatalogo(tenantId, termo) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** uuid v4 para identificar a venda (o servidor não grava duas vezes a mesma chave). */
+function novaChave(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (Number(c) ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(c) / 4)))).toString(16),
+  );
+}
 
 /** O termo é o SKU ou o código de barras (leitor USB) exato do produto. */
 const casaCodigo = (p: Produto, termo: string) =>
@@ -55,6 +76,8 @@ export default function Pdv({
   caixa,
   caixaObrigatorio,
   larguraCupom,
+  tenantId,
+  operadorId,
 }: {
   branding: Branding;
   pix: PixConfig;
@@ -64,6 +87,8 @@ export default function Pdv({
   caixa: CaixaAberto | null;
   caixaObrigatorio: boolean;
   larguraCupom: 58 | 80;
+  tenantId: string;
+  operadorId: string;
 }) {
   const router = useRouter();
   const cor = branding.cor_primaria ?? "#2563eb";
@@ -103,6 +128,11 @@ export default function Pdv({
   const [agora, setAgora] = useState<Date | null>(null);
   const [abertura, setAbertura] = useState<Date | null>(null);
   const [online, setOnline] = useState(true);
+  // Modo sem internet: cópia do catálogo, fila de vendas guardadas e envio automático quando a internet volta
+  const offline = useVendasOffline(tenantId, operadorId, online);
+  const [painelOffline, setPainelOffline] = useState(false);
+  const [vendaOffline, setVendaOffline] = useState(false);
+  const chaveRef = useRef<{ assinatura: string; chave: string } | null>(null);
 
   const buscaRef = useRef<HTMLInputElement>(null);
   const fimListaRef = useRef<HTMLLIElement>(null);
@@ -180,19 +210,24 @@ export default function Pdv({
     let cancelado = false;
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/produtos?q=${encodeURIComponent(termo)}`);
+        const res = await fetchComTimeout(`/api/produtos?q=${encodeURIComponent(termo)}`, {}, 4000);
         if (!res.ok || cancelado) return;
         setResultados(((await res.json()) as Produto[]).slice(0, 30));
         setIdx(-1);
       } catch {
-        // Sem internet: as sugestões simplesmente não aparecem; o Enter mostra o aviso de conexão.
+        // Sem internet: sugere a partir da cópia do catálogo guardada no aparelho
+        const local = await buscarLocal(tenantId, termo);
+        if (local && !cancelado) {
+          setResultados(local.slice(0, 30));
+          setIdx(-1);
+        }
       }
     }, 200);
     return () => {
       cancelado = true;
       clearTimeout(t);
     };
-  }, [busca]);
+  }, [busca, tenantId]);
 
   useEffect(() => {
     fimListaRef.current?.scrollIntoView({ block: "end" });
@@ -258,11 +293,18 @@ export default function Pdv({
 
     let lista: Produto[];
     try {
-      const res = await fetch(`/api/produtos?q=${encodeURIComponent(termo)}`);
+      const res = await fetchComTimeout(`/api/produtos?q=${encodeURIComponent(termo)}`, {}, 6000);
       if (!res.ok) return setAviso({ tipo: "erro", texto: "Erro ao buscar produto" });
       lista = (await res.json()) as Produto[];
     } catch {
-      return setAviso({ tipo: "erro", texto: "Sem conexão com a internet. Verifique a rede e tente de novo." });
+      const local = await buscarLocal(tenantId, termo);
+      if (!local) {
+        return setAviso({
+          tipo: "erro",
+          texto: "Sem conexão com a internet e este aparelho ainda não baixou o catálogo. Conecte uma vez para poder vender offline.",
+        });
+      }
+      lista = local;
     }
     const exato = lista.find((p) => casaCodigo(p, termo));
     if (exato) return adicionar(exato, quantidade);
@@ -346,36 +388,103 @@ export default function Pdv({
   async function finalizar() {
     setErroVenda(null);
     setEnviando(true);
+    const corpo = {
+      itens: carrinho.map((i) => ({ produto_id: i.produto.id, quantidade: i.quantidade })),
+      forma_pagamento: forma,
+      desconto: descontoNum,
+      valor_recebido: forma === "dinheiro" ? recebidoNum : null,
+    };
+    // Rede que cai no meio do envio: tentar de novo usa a MESMA chave e o servidor não grava a venda duas vezes
+    const assinatura = JSON.stringify([corpo, cliente?.id ?? null, entrega, enderecoEntrega]);
+    if (chaveRef.current?.assinatura !== assinatura) chaveRef.current = { assinatura, chave: novaChave() };
+    const chave = chaveRef.current.chave;
+
     let res: Response;
     try {
-      res = await fetch("/api/vendas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          itens: carrinho.map((i) => ({ produto_id: i.produto.id, quantidade: i.quantidade })),
-          forma_pagamento: forma,
-          desconto: descontoNum,
-          valor_recebido: forma === "dinheiro" ? recebidoNum : null,
-          cliente_id: cliente?.id ?? null,
-          entrega,
-          entrega_endereco: entrega ? enderecoEntrega : null,
-        }),
-      });
+      res = await fetchComTimeout(
+        "/api/vendas",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...corpo,
+            cliente_id: cliente?.id ?? null,
+            entrega,
+            entrega_endereco: entrega ? enderecoEntrega : null,
+            chave,
+          }),
+        },
+        12000,
+      );
     } catch {
       setEnviando(false);
-      setErroVenda(
-        "Sem conexão com a internet. Antes de tentar de novo, confira em Vendas se esta venda não foi registrada.",
-      );
-      return;
+      return guardarSemInternet(corpo, chave);
     }
     setEnviando(false);
+    // Sessão vencida ou servidor fora do ar: a venda já aconteceu no balcão, então fica guardada e é enviada depois
+    if (res.status === 401 || res.status === 502 || res.status === 503 || res.status === 504) {
+      return guardarSemInternet(corpo, chave);
+    }
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       setErroVenda(json?.error ?? "Erro ao finalizar a venda");
       return;
     }
+    chaveRef.current = null;
     setPagando(false);
+    setVendaOffline(false);
     setVendaFeita(json as Venda);
+    setCarrinho([]);
+    setCliente(null);
+    setEntrega(false);
+    setSelecionado(null);
+    setUltimo(null);
+    void offline.baixarCatalogo(); // o estoque local acompanha o do servidor
+  }
+
+  /** Sem internet: guarda a venda no aparelho e mostra o cupom marcado como offline. */
+  async function guardarSemInternet(corpo: VendaPendente["corpo"], chave: string) {
+    if (cliente || entrega) {
+      setErroVenda(
+        "Sem conexão com a internet. Cliente e entrega só funcionam com internet: tire o cliente (F7) e finalize de novo. " +
+          "A venda fica guardada neste aparelho e é enviada quando a internet voltar.",
+      );
+      return;
+    }
+    const criadoEm = new Date().toISOString();
+    const itensVenda = carrinho.map((i, n) => ({
+      id: `${chave}-${n}`,
+      quantidade: i.quantidade,
+      preco_unitario: i.produto.preco_venda,
+      subtotal: i.produto.preco_venda * i.quantidade,
+      produtos: { nome: i.produto.nome, unidade: i.produto.unidade },
+    }));
+    const venda: Venda = {
+      id: `offline-${chave}`,
+      total,
+      desconto: descontoNum,
+      forma_pagamento: forma,
+      valor_recebido: forma === "dinheiro" ? recebidoNum : null,
+      troco: forma === "dinheiro" ? troco : null,
+      status: "concluida",
+      criado_em: criadoEm,
+      operador_id: operadorId,
+      operador_nome: operador,
+      offline: true,
+      itens_venda: itensVenda,
+    };
+    try {
+      await enfileirar({ chave, tenantId, operadorId, caixaId: caixa?.id ?? null, criadoEm, corpo, venda, estado: "pendente", erro: null });
+    } catch {
+      setErroVenda("Sem conexão com a internet e este navegador não deixa guardar a venda no aparelho. Tente de novo quando a internet voltar.");
+      return;
+    }
+    await baixarEstoqueLocal(tenantId, corpo.itens).catch(() => {});
+    chaveRef.current = null;
+    void offline.recarregar();
+    setPagando(false);
+    setVendaOffline(true);
+    setVendaFeita(venda);
     setCarrinho([]);
     setCliente(null);
     setEntrega(false);
@@ -385,6 +494,7 @@ export default function Pdv({
 
   function novaVenda() {
     setVendaFeita(null);
+    setVendaOffline(false);
     setTimeout(() => buscaRef.current?.focus(), 50);
   }
 
@@ -778,10 +888,30 @@ export default function Pdv({
         <div className="text-xs sm:text-sm">
           <span className="text-amber-300">Versão 0.1</span> ·{" "}
           <span className={online ? "text-emerald-300" : "text-red-300"}>● {online ? "On-line" : "Off-line"}</span>
+          {offline.fila.length > 0 && (
+            <button
+              onClick={() => setPainelOffline(true)}
+              className="ml-2 rounded bg-amber-400 px-2 py-0.5 text-xs font-semibold text-black"
+            >
+              {offline.fila.length} {offline.fila.length === 1 ? "venda aguardando" : "vendas aguardando"} envio
+            </button>
+          )}
         </div>
         <div className="hidden text-xs text-white/80 sm:block">{branding.nome_fantasia} • PDV</div>
         <div className="text-2xl font-semibold tabular-nums text-amber-300 sm:text-3xl">{hora}</div>
       </footer>
+
+      {painelOffline && (
+        <PendentesOffline
+          fila={offline.fila}
+          enviando={offline.enviando}
+          semSessao={offline.semSessao}
+          online={online}
+          onEnviar={() => void offline.enviarAgora()}
+          onDescartar={(chave) => void offline.descartar(chave)}
+          onFechar={() => setPainelOffline(false)}
+        />
+      )}
 
       {/* ===== Caixa: abrir (obrigatório = sem como dispensar), sangria/suprimento e fechar ===== */}
       {!caixa && (bloqueado || janelaCaixa === "abrir") && (
@@ -997,14 +1127,20 @@ export default function Pdv({
       {vendaFeita && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <p className="mb-3 text-center text-lg font-semibold text-emerald-700">Venda concluída ✔</p>
+            {vendaOffline ? (
+              <p className="mb-3 rounded-lg bg-amber-50 p-2 text-center font-semibold text-amber-900">
+                Venda guardada sem internet. Será enviada sozinha quando a conexão voltar.
+              </p>
+            ) : (
+              <p className="mb-3 text-center text-lg font-semibold text-emerald-700">Venda concluída ✔</p>
+            )}
             {vendaFeita.troco != null && Number(vendaFeita.troco) > 0 && (
               <p className="mb-3 rounded-lg bg-emerald-50 py-2 text-center text-emerald-800">
                 Troco: <strong className="text-2xl">{brl(Number(vendaFeita.troco))}</strong>
               </p>
             )}
             <div className="recibo-print">
-              <Recibo venda={vendaFeita} nomeFantasia={branding.nome_fantasia} largura={larguraCupom} />
+              <Recibo venda={vendaFeita} nomeFantasia={branding.nome_fantasia} largura={larguraCupom} pendente={vendaOffline} />
             </div>
             <div className="mt-4 flex gap-2">
               <button onClick={() => window.print()} className="flex-1 rounded-lg border border-gray-300 py-2 font-medium">

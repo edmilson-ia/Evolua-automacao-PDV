@@ -3,11 +3,12 @@
  * O que ele faz:
  *  - Páginas: rede primeiro (dado sempre atual); se a rede falhar, usa a última cópia; sem cópia, /offline.
  *  - Arquivos estáticos do app (/_next/static, ícones): cache primeiro, para abrir rápido e com internet ruim.
- *  - /api/*: NUNCA vai para o cache. Venda, estoque e busca precisam ser sempre reais.
+ *  - /api/*: NUNCA vai para o cache. Venda, estoque e busca precisam ser sempre reais. O PDV vende sem internet por
+ *    conta própria: guarda o catálogo e as vendas no IndexedDB do aparelho (src/lib/offline), não aqui.
  *
  * Ao mudar a estratégia, aumente VERSION para limpar os caches antigos.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const PAGES = `evolua-pages-${VERSION}`;
 const STATIC = `evolua-static-${VERSION}`;
 const OFFLINE_URL = "/offline";

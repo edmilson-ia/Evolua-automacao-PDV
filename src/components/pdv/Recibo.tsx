@@ -7,11 +7,14 @@ export default function Recibo({
   venda,
   nomeFantasia = "Evolua Automação",
   largura = 80,
+  pendente = false,
 }: {
   venda: Venda;
   nomeFantasia?: string;
   /** Largura do papel da impressora térmica, em mm. */
   largura?: 58 | 80;
+  /** Venda feita sem internet, ainda não enviada ao sistema. */
+  pendente?: boolean;
 }) {
   const subtotal = venda.itens_venda.reduce((s, i) => s + Number(i.subtotal), 0);
   return (
@@ -20,6 +23,7 @@ export default function Recibo({
       <style>{`@media print { @page { size: ${largura}mm auto; margin: 0 } }`}</style>
       <div className="text-center font-bold">{nomeFantasia}</div>
       <div className="text-center text-xs">Comprovante não fiscal</div>
+      {pendente && <div className="text-center text-xs font-bold">VENDA OFFLINE - aguardando envio ao sistema</div>}
       <div className="text-center text-xs">{dataHoraBR(venda.criado_em)}</div>
       {venda.operador_nome && <div className="text-center text-xs">Operador: {venda.operador_nome}</div>}
       {venda.cliente_nome && <div className="text-center text-xs">Cliente: {venda.cliente_nome}</div>}
