@@ -75,7 +75,7 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 - **Login/demo**: Claude nunca digita senha em formulário. O navegador do preview e a janela do app instalado têm logins separados: o usuário precisa entrar no painel do PREVIEW para haver capturas logadas; senão, entregar checklist manual e dizer o que não foi visto.
 - **Testes**: primeiro disparo depois de subir o servidor pode dar `fetch failed` (compilando). `Assertion failed ... UV_HANDLE_CLOSING` no fim de script Node no Windows é ruído inofensivo.
 - **Shell**: evitar vários heredocs com aspas numa chamada Bash (erro de parse, nada roda); escrever o script no scratchpad com a ferramenta Write e rodar o arquivo.
-- Ao concluir cada etapa, atualizar também a skill `evolua-automacao-pdv` (status, decisões, pendências).
+- Ao concluir cada etapa, atualizar também a skill `evolua-automacao-pdv` (status, decisões, pendências). Uma cópia da skill fica em `docs/skill/SKILL.md` (a versão viva está na pasta de skills do Claude; recopiar para cá ao atualizar). O bloco "PONTO DE PARTIDA DA PRÓXIMA SESSÃO" dela diz por onde continuar.
 
 ## Roteiro (ordem: 6 → 1 → 2 → 3 → 5 → 4)
 6 Quem vendeu (feito) · 1 Multi-loja + clientes + entrega (feito) · 2 Caixa (feito) · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
