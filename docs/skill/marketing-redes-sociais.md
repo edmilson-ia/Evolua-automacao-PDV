@@ -334,6 +334,104 @@ Legendas curtas no começo (as 2 primeiras linhas aparecem antes do "mais"): o g
 
 **Fim de semana (sáb e dom):** só Stories (seção 6). Domingo 20:00: enquete + caixinha para alimentar a semana seguinte.
 
+### 🍺 CALENDÁRIO EXTRA — Depósito de bebidas (semanas 5 e 6: 19 a 30/10/2026)
+
+Continua o calendário acima (que termina na sexta 16/10). Todas as peças falam com o **dono do depósito** (venda, estoque e caixa), nunca com o consumidor. Grave na loja de demonstração com produtos de bebida importados por planilha. Números de exemplo são fictícios e vêm marcados como tal. Hashtags D já com a cidade (seção 7).
+
+| # | Data | Hora | Formato | Tema |
+|---|---|---|---|---|
+| 21 | Seg 19/10 | 19:30 | Carrossel | 5 sinais de que o depósito perde dinheiro |
+| 22 | Ter 20/10 | 07:30 | Reels | Venda rápida na fila de sexta |
+| 23 | Qua 21/10 | 12:30 | Reels | Entrada de mercadoria do fornecedor |
+| 24 | Qui 22/10 | 20:00 | Carrossel | Margem: lata solta × fardo |
+| 25 | Sex 23/10 | 12:00 | Carrossel curto | Teste grátis com a planilha do depósito |
+| 26 | Seg 26/10 | 19:30 | Carrossel | Checklist antes do fim de semana |
+| 27 | Ter 27/10 | 07:30 | Reels | Caixa do turno: sangria e fechamento cego |
+| 28 | Qua 28/10 | 12:30 | Reels | Catálogo no WhatsApp + venda com entrega |
+| 29 | Qui 29/10 | 20:00 | Carrossel | Mitos e verdades sobre sistema para depósito |
+| 30 | Sex 30/10 | 12:00 | Reels | Quanto sobra depois da taxa do cartão |
+
+**Post 21 · Seg 19/10 · 19:30 · Carrossel (7 slides)**
+- **Slides:** 1 "Seu depósito perde dinheiro e você nem vê" → 2 "O caixa fecha e a conta não bate" → 3 "A cerveja acaba no sábado, justo no maior movimento" → 4 "O fornecedor subiu o preço e o seu preço de venda ficou parado" → 5 "Você sabe o que vende mais, mas não o que dá mais lucro" → 6 "Só você sabe o preço de tudo: ninguém mais consegue ficar no balcão" → 7 "Marcou 2 ou mais? Teste grátis 7 dias → WhatsApp".
+- **Legenda:**
+  > Depósito de bebidas vive de giro. E é no giro que o dinheiro escapa sem ninguém ver. 🍺💸
+  > Passa os slides e conta quantos desses sinais você reconhece aí no balcão.
+  > Marcou 2 ou mais? Salva este post e me chama no WhatsApp: teste grátis de 7 dias, sem cartão. Link na bio 📲
+- **Hashtags:** A + C.
+
+**Post 22 · Ter 20/10 · 07:30 · Reels 15 s (demonstração)**
+- **Gravação de tela (loja demo):** digitar "cerveja" → Enter → `5x` na frente → outro item → **F4** → PIX → QR Code → cupom. Cronômetro real no canto, gravado sem cortes.
+- **Legenda:**
+  > Sexta à noite, fila no balcão e cliente com pressa? ⚡ Busca, quantidade, PIX e cupom em poucos segundos. Funciona no celular, no tablet e no computador.
+  > Quer ver na sua loja? Teste grátis por 7 dias. Link na bio 📲
+- **Hashtags:** B + C.
+
+**Post 23 · Qua 21/10 · 12:30 · Reels 20 s**
+- **Roteiro:** caixas empilhadas do fornecedor → **Estoque → Movimentos → Entrada** (produto, quantidade, motivo) → histórico mostrando **quem fez** a entrada → "Estoque atualizado".
+- **Legenda:**
+  > Chegou o pedido do fornecedor? Dá entrada no sistema em segundos e o estoque já fica certo. 📦
+  > Todo movimento fica com o nome de **quem fez**, então ninguém mexe no estoque no escuro.
+  > Teste grátis de 7 dias. Chama no WhatsApp 👇
+- **Hashtags:** B + C.
+
+**Post 24 · Qui 22/10 · 20:00 · Carrossel (6 slides)**
+- **Slides:** 1 "Vender fardo ou vender lata solta: qual dá mais lucro?" → 2 "Fórmula: (Venda − Custo) ÷ Venda × 100" → 3 "Exemplo: lata custo R$ 4,20 · venda R$ 6,00 → margem **30%**" → 4 "Exemplo: fardo custo R$ 38,00 · venda R$ 46,00 → margem **17,4%**" → 5 "Fardo vende mais volume, mas deixa menos por real vendido" → 6 "O painel mostra a margem de cada produto sozinho. Teste grátis → WhatsApp".
+- **Conferência:** (6,00 − 4,20) ÷ 6,00 = 30% ✅ · (46,00 − 38,00) ÷ 46,00 = 17,4% ✅.
+- **Legenda:**
+  > Quem vende mais nem sempre lucra mais. 🤔 Os números do post são **exemplos fictícios**, só para ilustrar a conta.
+  > No sistema você cadastra o custo uma vez e o painel mostra a margem de cada produto e avisa se algum estiver vendendo abaixo do custo.
+  > Teste grátis de 7 dias. Link na bio 📲
+- **Hashtags:** A + C.
+
+**Post 25 · Sex 23/10 · 12:00 · Carrossel curto (oferta)**
+- **Arte (3 slides):** 1 "TESTE GRÁTIS 7 DIAS pro seu depósito" → 2 "✔ PDV ✔ Estoque ✔ Caixa ✔ Catálogo ✔ Vende sem internet" → 3 "Mande a sua planilha de produtos e eu deixo tudo pronto".
+- **Legenda:**
+  > Tem depósito, adega ou distribuidora? Teste o sistema 7 dias, na sua loja, com os seus produtos. 🧡
+  > ✅ PDV com PIX, cartão e dinheiro · ✅ Estoque com alerta de estoque baixo · ✅ Caixa com fechamento · ✅ Catálogo digital com a sua marca
+  > Sem cartão e sem compromisso. Comenta **QUERO** ou chama no WhatsApp: (21) 98658-0480. Atendo São João de Meriti e região. 📲
+- **Hashtags:** A + B + C + D.
+
+**Post 26 · Seg 26/10 · 19:30 · Carrossel (7 slides)**
+- **Slides:** capa "Seu depósito está pronto pro fim de semana?" + 6 itens ✅/❌: "Vi o que está com estoque baixo" · "Repus o que mais gira" · "Caixa aberto e com troco" · "PIX pronto no balcão" · "Equipe com acesso próprio" · "Catálogo atualizado no WhatsApp".
+- **Legenda:**
+  > Fim de semana é o maior movimento do depósito. Antes de abrir, confere o checklist. ✅
+  > Salva o post e comenta quantos ✅ você fez. Se ficou com vários ❌, dá para resolver com um sistema simples. Teste grátis de 7 dias, link na bio 📲
+- **Hashtags:** A + C + D.
+
+**Post 27 · Ter 27/10 · 07:30 · Reels 20 s**
+- **Roteiro:** abre o caixa com valor inicial → **sangria** com motivo → no fim, o funcionário **conta e informa antes de ver o esperado** (fechamento cego) → relatório esperado × contado × diferença.
+- **Legenda:**
+  > Quem fechou o caixa ontem? E a conta bateu? 😅 Com a abertura, a sangria e o **fechamento cego** (a pessoa conta antes de ver o valor esperado), fica tudo registrado e sem "achismo".
+  > Teste grátis de 7 dias. Chama no WhatsApp 👇
+- **Hashtags:** A + B + C.
+- **Aviso:** abrir e fechar caixa precisam de internet; não grave essa cena no modo avião.
+
+**Post 28 · Qua 28/10 · 12:30 · Reels 25 s**
+- **Roteiro:** **catálogo com a marca do depósito** (foto, nome, preço) → cliente "manda mensagem" no WhatsApp → no PDV, seleciona o cliente cadastrado e marca **"É entrega?"** com o endereço → cupom com o bloco ENTREGA.
+- **Legenda:**
+  > Cliente vê o catálogo com fotos e preços, chama no WhatsApp e você registra a venda com o **endereço de entrega** direto no sistema. 🛵
+  > *(O catálogo é uma vitrine, sem carrinho de compras. Ainda não calculamos frete nem status da entrega.)*
+  > Quer o seu? Teste grátis de 7 dias. Link na bio 📲
+- **Hashtags:** B + C + D.
+
+**Post 29 · Qui 29/10 · 20:00 · Carrossel FAQ (7 slides)**
+- **Slides:** 1 capa → 2 "'Funciona só no computador?' **Mito.** Instala como app no celular" → 3 "'Preciso de internet o tempo todo?' **Mito.** Vende sem internet e envia depois" → 4 "'Tem que digitar produto por produto?' **Mito.** Importa a sua planilha" → 5 "'Meu funcionário vê meu custo?' **Não.** O operador não vê preço de custo" → 6 "'Emite nota fiscal?' **Ainda não.** Foco em PDV, estoque e caixa" → 7 "Teste grátis 7 dias → WhatsApp".
+- **Legenda:**
+  > Separei os mitos que mais escuto de dono de depósito. E sim, respondo a verdade inclusive sobre nota fiscal: **ainda não emitimos**; o foco é o controle do dia a dia. ✅
+  > Ficou alguma dúvida? Comenta ou chama no WhatsApp: (21) 98658-0480. Teste grátis de 7 dias 🧡
+- **Hashtags:** A + B + C.
+
+**Post 30 · Sex 30/10 · 12:00 · Reels 20 s**
+- **Roteiro:** texto na tela "Vendeu R$ 100 no crédito. Quanto entra?" → conta com taxa de **exemplo** (3,5% → R$ 96,50) → tela do **painel** com faturamento bruto × **valor líquido** → "Você configura a taxa da sua maquininha".
+- **Legenda:**
+  > Vender R$ 100 no crédito não significa receber R$ 100. 💳 O exemplo é ilustrativo (a taxa varia por maquininha e plano).
+  > No painel você cadastra as **suas** taxas de débito e crédito e vê o valor **líquido** das vendas do dia. Menos surpresa no fim do mês.
+  > Teste grátis de 7 dias. Link na bio 📲
+- **Hashtags:** A + C.
+- **Antes de postar:** o sistema mostra o líquido, mas não conecta com a maquininha. Não sugira integração.
+
+**Cuidados do nicho:** o Meta restringe anúncio de bebida alcoólica. Estas peças falam com o dono do negócio e não incentivam consumo; evite pessoas bebendo e público menor de 18. Se anunciar, use só "empreendedores 25+". **Sem preço definido, não rode anúncio pago**; se perguntarem, responda que o teste é grátis e que o valor é passado depois do teste, sem pegadinha.
+
 ---
 
 ## 6. Stories: rotina semanal (3 a 5 por dia, 5 minutos)
@@ -359,7 +457,7 @@ Legendas curtas no começo (as 2 primeiras linhas aparecem antes do "mais"): o g
 - **A · Comércio e gestão:** `#pequenasempresas #empreendedorismo #comercio #donodeloja #gestaoempresarial #controlefinanceiro #lucro #varejo #negociolocal #microempreendedor`
 - **B · Tecnologia/PDV:** `#pdv #sistemapdv #frentedecaixa #controledeestoque #automacaocomercial #appparaempresas #tecnologiaparanegocios #sistemaparacomercio #digitalizacao`
 - **C · Nicho (bebidas/mercadinho/padaria):** `#depositodebebidas #adega #mercadinho #minimercado #padaria #lanchonete #conveniencia #distribuidoradebebidas #mercearia`
-- **D · Local e chamadas:** `#[suacidade] #comercio[suacidade] #empreendedor[suacidade] #testegratis #donodenegocio`
+- **D · Local e chamadas:** `#saojoaodemeriti #comerciosaojoaodemeriti #empreendedorsaojoaodemeriti #baixadafluminense #testegratis #donodenegocio` (cidade do Edmilson: São João de Meriti/RJ)
 - **Dica:** 3 a 5 hashtags fortes bastam; o alcance vem mais do conteúdo do que da hashtag. Troque o conjunto a cada post.
 
 ---
@@ -520,6 +618,8 @@ Legendas curtas no começo (as 2 primeiras linhas aparecem antes do "mais"): o g
 
 ## 15. Campos para preencher (o Claude usa depois para gerar mais conteúdo)
 
-`[SEU WHATSAPP]` · `[SUA CIDADE]` · `[USUÁRIO DO INSTAGRAM]` · `[PREÇO DO PLANO]` · `[O QUE ESTÁ INCLUSO]` · `[FIDELIDADE: sim/não]` · `[IMPLANTAÇÃO ASSISTIDA: sim/não/preço]` · `[HISTÓRIA DO EDMILSON]` · `[BENEFÍCIO DE INDICAÇÃO]` · `[BÔNUS OPCIONAL DO POST 20]` · `[TEMPO REAL DO POST 18]`.
+**Já preenchidos (2026-09-19):** WhatsApp `(21) 98658-0480` (link da bio: `https://wa.me/5521986580480?text=Quero%20testar%20gr%C3%A1tis%20o%20sistema`) · cidade São João de Meriti/RJ. **Preço: ainda NÃO definido** (não anunciar pago até definir).
+
+**Ainda pendentes:** `[USUÁRIO DO INSTAGRAM]` · `[PREÇO DO PLANO]` · `[O QUE ESTÁ INCLUSO]` · `[FIDELIDADE: sim/não]` · `[IMPLANTAÇÃO ASSISTIDA: sim/não/preço]` · `[HISTÓRIA DO EDMILSON]` · `[BENEFÍCIO DE INDICAÇÃO]` · `[BÔNUS OPCIONAL DO POST 20]` · `[TEMPO REAL DO POST 18]`.
 
 **Para pedir mais conteúdo ao Claude:** "Use a skill evolua-automacao-pdv e o arquivo `marketing-redes-sociais.md`. Gere [N] novos posts para [nicho], com legenda, horário e roteiro, no mesmo padrão."
