@@ -27,20 +27,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-gray-50 pt-[env(safe-area-inset-top)]">
       <FaixaTeste teste={teste} />
       <header className="border-b border-gray-200 bg-white print:hidden">
-        <nav className="mx-auto flex max-w-6xl items-center gap-4 overflow-x-auto p-3 sm:px-6">
-          <span className="flex items-center gap-2 whitespace-nowrap font-bold text-brand">
+        {/* Celular: o menu rola para o lado. Computador estreito: quebra em duas linhas. Os itens NUNCA encolhem (shrink-0), senão o nome da loja invade o "Dashboard". */}
+        <nav className="mx-auto flex max-w-6xl items-center gap-x-4 gap-y-1 overflow-x-auto p-3 sm:px-6 md:flex-wrap md:overflow-visible">
+          <span className="flex shrink-0 items-center gap-2 whitespace-nowrap font-bold text-brand">
             {b.logo_url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.logo_url} alt="" className="h-8 w-auto" />
+              <img src={b.logo_url} alt="" className="h-8 w-auto shrink-0" />
             )}
             {b.nome_fantasia}
           </span>
           {links(b.slug).filter((l) => l.perfis.includes(sessao.perfil)).map((l) => (
-            <Link key={l.href} href={l.href} className="whitespace-nowrap py-2 text-sm font-medium text-gray-700 hover:text-brand">
+            <Link key={l.href} href={l.href} className="shrink-0 whitespace-nowrap py-2 text-sm font-medium text-gray-700 hover:text-brand">
               {l.label}
             </Link>
           ))}
-          <span className="ml-auto flex items-center gap-3 whitespace-nowrap">
+          <span className="ml-auto flex shrink-0 items-center gap-3 whitespace-nowrap">
             <InstallPwaButton className="whitespace-nowrap rounded-lg border border-brand px-3 py-1 text-sm font-medium text-brand hover:bg-gray-50" />
             <span className="hidden text-sm text-gray-600 sm:inline">
               {sessao.nome} · {sessao.perfil === "admin" ? "Administrador" : "Operador"}
