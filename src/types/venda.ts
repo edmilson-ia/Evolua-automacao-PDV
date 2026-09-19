@@ -20,6 +20,12 @@ export type Venda = {
   /** Quem vendeu (nulo nas vendas anteriores à migration 0005). */
   operador_id?: string | null;
   operador_nome?: string | null;
+  /** Cliente da venda e dados da entrega (copiados na hora da venda; nulos nas vendas sem cliente). */
+  cliente_id?: string | null;
+  cliente_nome?: string | null;
+  cliente_telefone?: string | null;
+  entrega?: boolean;
+  entrega_endereco?: string | null;
   /** Preenchidos quando a venda é cancelada (migration 0004). */
   cancelada_em?: string | null;
   motivo_cancelamento?: string | null;

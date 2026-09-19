@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirPagina } from "@/lib/auth";
 import { brl, hojeSP } from "@/lib/format";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
+import { getConfigPagamento } from "@/lib/tenant";
 import { calcularLiquido } from "@/lib/taxas";
 import { FORMA_LABEL, type FormaPagamento } from "@/types/venda";
 
@@ -34,7 +34,7 @@ type ItemRow = { quantidade: number; subtotal: number; produtos: { nome: string;
 type ProdutoRow = { nome: string; quantidade: number; estoque_minimo: number; preco_custo: number; preco_venda: number; unidade: string };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ periodo?: string }> }) {
-  await exigirPagina(["admin"]);
+  const sessao = await exigirPagina(["admin"]);
   const sp = await searchParams;
   const periodo: Periodo = sp.periodo && sp.periodo in PERIODOS ? (sp.periodo as Periodo) : "hoje";
   const n = PERIODOS[periodo].n;
@@ -43,7 +43,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const fim = new Date(new Date(`${hojeSP()}T00:00:00-03:00`).getTime() + 86400000).toISOString();
 
   const db = createServerClient();
-  const tenant = getTenantId();
+  const tenant = sessao.tenantId;
+  const taxas = await getConfigPagamento(tenant);
   const [vendasRes, itensRes, produtosRes] = await Promise.all([
     db.from("vendas").select("total, forma_pagamento, criado_em, operador_id, operador_nome").eq("tenant_id", tenant).eq("status", "concluida").gte("criado_em", inicio).lt("criado_em", fim),
     db
@@ -62,7 +63,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   // ---- KPIs ----
   const bruto = vendas.reduce((s, v) => s + Number(v.total), 0);
-  const liquido = vendas.reduce((s, v) => s + calcularLiquido(v.forma_pagamento, Number(v.total)).liquido, 0);
+  const liquido = vendas.reduce((s, v) => s + calcularLiquido(v.forma_pagamento, Number(v.total), taxas).liquido, 0);
   const ticket = vendas.length ? bruto / vendas.length : 0;
 
   // ---- vendas por operador (agrupa pelo id; o nome é o da hora da venda) ----
@@ -72,7 +73,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const atual = porOperador.get(chave) ?? { nome: v.operador_nome ?? "Sem operador registrado", qtd: 0, bruto: 0, liquido: 0 };
     atual.qtd += 1;
     atual.bruto += Number(v.total);
-    atual.liquido += calcularLiquido(v.forma_pagamento, Number(v.total)).liquido;
+    atual.liquido += calcularLiquido(v.forma_pagamento, Number(v.total), taxas).liquido;
     porOperador.set(chave, atual);
   });
   const operadores = [...porOperador.entries()].sort(([, a], [, b]) => b.bruto - a.bruto);

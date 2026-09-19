@@ -2,7 +2,7 @@
 
 # Evolua Automação PDV
 
-PDV + estoque + catálogo **white-label**, instalável como **PWA**. Repositório privado: `edmilson-ia/Evolua-automacao-PDV` (branch `main`).
+PDV + estoque + catálogo **white-label**, várias lojas na mesma instalação (multi-tenant), instalável como **PWA**. Repositório privado: `edmilson-ia/Evolua-automacao-PDV` (branch `main`).
 Responda **sempre em português informal, explicando passo a passo**. Este projeto é da Evolua Automação e não tem relação com a Expertize.
 
 ## Stack
@@ -23,27 +23,32 @@ npm run lint           # eslint
 Não há suíte de testes: regras de segurança, dinheiro e estoque são provadas por **scripts** em `scripts/` (um por tarefa), com o servidor rodando:
 ```bash
 node --env-file=.env.local scripts/test-quem-vendeu.mjs
+node --env-file=.env.local scripts/test-multi-loja.mjs   # isolamento entre lojas
 ```
 
 ## Arquitetura
 ```
 src/app/(app)/      painel (nav): dashboard, estoque, /pdv/vendas, configurações
 src/app/(caixa)/    PDV tela cheia (/pdv)
-src/app/(public)/   login, setup, recuperar-senha, catálogo, offline
+src/app/(public)/   /login (pergunta a loja), recuperar-senha, offline e /c/[slug] (catálogo, login e manifest POR LOJA)
+src/app/plataforma/ área do super-admin (lojas, onboarding)
 src/app/api/        rotas de API (auth, produtos, vendas, movimentos, usuários, branding, upload...)
 src/app/manifest.ts manifest dinâmico por marca; ícones em src/app/pwa/icon/[size]
 src/components/     pdv, estoque, auth, branding, pwa (componentes pequenos)
-src/lib/            session.ts (JWT, sem Next), auth.ts, tenant.ts, telefone.ts, pix.ts, taxas.ts, format.ts, supabase/
+src/lib/            session.ts (JWT, sem Next), auth.ts, tenant.ts, loja.ts (slug), storage.ts, telefone.ts, pix.ts, taxas.ts, format.ts, supabase/
 src/proxy.ts        primeira barreira de acesso
 supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 ```
-- Acesso ao banco: **service role** no servidor (`createServerClient()`), sempre filtrando por `tenant_id`. Dinheiro/estoque mudam só por funções SQL transacionais (`fechar_venda`, `cancelar_venda`, `registrar_movimento`).
+- **Multi-loja**: a loja vem SEMPRE de `sessao.tenantId` (claim `tid` do JWT). `exigirApi()` devolve `{ ok, sessao }` ou a resposta de erro; não existe `getTenantId()` e nunca se aceita loja do corpo/URL nas rotas privadas. Só as telas públicas resolvem a loja pelo slug da URL (`/c/[slug]`, `getLojaPorSlug`). Perfis: `admin` | `operador` (de uma loja) e `super_admin` (dono da plataforma, sem loja, só `/plataforma`). Loja e perfil ficam em `app_metadata` do Supabase Auth (o usuário não edita). Loja suspensa (`tenants.ativo=false`) perde o acesso em ≤30 s (`lojaAtiva`, cache).
+- Acesso ao banco: **service role** no servidor (`createServerClient()`), sempre filtrando por `tenant_id`. RLS ligado em todas as tabelas SEM policies e funções sem `execute` para anon/authenticated: só o servidor acessa (a service role ignora RLS, então o isolamento entre lojas depende do código + `test-multi-loja.mjs`). Dinheiro/estoque mudam só por funções SQL transacionais (`fechar_venda`, `cancelar_venda`, `registrar_movimento`).
 - Sessão: cookie httpOnly com JWT HS256 (12 h), `SESSION_SECRET`. Perfis em `app_metadata.perfil`: `admin` | `operador`.
-- Login por **telefone** (`src/lib/telefone.ts`); o Supabase exige e-mail, então o usuário recebe e-mail interno `<dígitos>@tel.evolua.test` (nunca exibido).
-- Recuperação de senha: operador pede ao admin; admin usa `SETUP_CODE`.
+- Login por **telefone** dentro da loja (`src/lib/telefone.ts`): o mesmo telefone pode existir em lojas diferentes. O Supabase exige e-mail, então o usuário recebe e-mail interno `<dígitos>@<slug>.evolua.test` (nunca exibido; usuários antigos mantêm `@tel.evolua.test`). O login recebe a loja (`/c/<slug>/login`).
+- Recuperação de senha: operador pede ao admin da loja; admin da loja pede ao super-admin (`/plataforma`); o super-admin usa o `SETUP_CODE` (da plataforma: NUNCA dar a clientes).
+- Por loja (colunas de `tenants`): `slug`, marca, `pix_chave`/`pix_cidade` e `taxa_debito`/`taxa_credito` (`getConfigPagamento`). Imagens em `produtos/<tenant>/...`; só a pasta da própria loja é aceita em `imagem_url`/branding.
 - Quem fez: `vendas` e `movimentos_estoque` guardam `operador_id` + `operador_nome` (cópia do nome na hora); cancelamentos e movimentos manuais também vão para `auditoria`. O operador vem SEMPRE da sessão, nunca do corpo da requisição. Operador só lista as próprias vendas.
-- Datas sempre em America/Sao_Paulo (`src/lib/format.ts`). Taxas de cartão em `src/lib/taxas.ts` (débito 2,0%, crédito 3,5%), calculadas na exibição.
-- PIX: QR estático (`src/lib/pix.ts`) com `PIX_KEY`/`PIX_CITY`; **não confirma pagamento**.
+- Datas sempre em America/Sao_Paulo (`src/lib/format.ts`). Taxas de cartão por loja (`src/lib/taxas.ts` recebe as taxas), calculadas na exibição.
+- PIX: QR estático (`src/lib/pix.ts`) com a chave da loja; **não confirma pagamento**.
+- Clientes: tabela `clientes` por loja (nome, telefone só dígitos, e-mail, endereço; exclusão lógica). Operador busca/cadastra; só admin edita/exclui. A venda guarda `cliente_id` + cópia de nome/telefone e, se `entrega`, `entrega_endereco` (o banco confere que o cliente é da loja; nome/telefone vêm do cadastro, não do corpo). Sem taxa/status de entrega ainda.
 
 ## Regras fixas (não quebrar)
 1. **Segurança em 2 camadas**: `src/proxy.ts` filtra e TODA rota de API/página sensível chama `exigirApi()` / `exigirPagina()` (`src/lib/auth.ts`). Rota nova = proteger e, se o operador puder usar, liberar no proxy. **Operador nunca recebe preço de custo.**
@@ -64,4 +69,4 @@ supabase/migrations/  0001..NNNN, aplicadas À MÃO pelo usuário
 6. Atualizar README/CLAUDE.md se a arquitetura mudou. Commit em português com a linha final `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` e `git push`.
 
 ## Roteiro (ordem: 6 → 1 → 2 → 3 → 5 → 4)
-6 Quem vendeu · 1 Multi-loja (multi-tenant) · 2 Abertura/fechamento de caixa · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).
+6 Quem vendeu (feito) · 1 Multi-loja (multi-tenant) · 2 Abertura/fechamento de caixa · 3 Importar produtos por planilha · 5 Impressora térmica e leitor de código · 4 Venda sem internet (por último: mexe na criação de vendas e no `sw.js`).

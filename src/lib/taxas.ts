@@ -1,12 +1,8 @@
 import type { FormaPagamento } from "@/types/venda";
 
-// Taxas cobradas pela maquininha/adquirente. Só débito e crédito têm taxa;
-// dinheiro e PIX entram pelo valor cheio.
-// Ficam aqui por enquanto; no multi-tenant passam a ser configuráveis por cliente.
-export const TAXAS_CARTAO: Partial<Record<FormaPagamento, number>> = {
-  debito: 2.0, // %
-  credito: 3.5, // %
-};
+// Taxas cobradas pela maquininha/adquirente, em % — configuradas por loja (tenants.taxa_debito/credito).
+// Só débito e crédito têm taxa; dinheiro e PIX entram pelo valor cheio.
+export type TaxasCartao = { debito: number; credito: number };
 
 export type Liquido = {
   /** Percentual aplicado (0 quando a forma não tem taxa). */
@@ -17,8 +13,8 @@ export type Liquido = {
   liquido: number;
 };
 
-export function calcularLiquido(forma: FormaPagamento, total: number): Liquido {
-  const taxaPct = TAXAS_CARTAO[forma] ?? 0;
+export function calcularLiquido(forma: FormaPagamento, total: number, taxas: TaxasCartao): Liquido {
+  const taxaPct = forma === "debito" ? taxas.debito : forma === "credito" ? taxas.credito : 0;
   // Arredonda em centavos para os totais baterem com o extrato
   const taxa = Math.round(total * taxaPct) / 100;
   return { taxaPct, taxa, liquido: Math.round((total - taxa) * 100) / 100 };

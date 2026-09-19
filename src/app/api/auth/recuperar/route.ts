@@ -2,7 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { registrarFalha, segundosBloqueado } from "@/lib/rate-limit";
-import { atualizarUsuario, buscarPorIdentificador } from "@/lib/supabase/auth-admin";
+import { atualizarUsuario, buscarUsuario } from "@/lib/supabase/auth-admin";
+import { normalizarTelefone } from "@/lib/telefone";
 
 const schema = z.object({
   identificador: z.string().trim().min(1, "Informe o telefone").max(120),
@@ -16,8 +17,9 @@ const iguais = (a: string, b: string) => {
   return A.length === B.length && timingSafeEqual(A, B);
 };
 
-// Recuperação de senha do ADMINISTRADOR (não há e-mail nem SMS): exige o SETUP_CODE do .env.local,
-// prova de que quem pede tem acesso ao servidor. O operador pede ao administrador (Usuários → Redefinir senha).
+// Recuperação de senha do DONO DA PLATAFORMA (super-admin; não há e-mail nem SMS): exige o SETUP_CODE do
+// .env.local, prova de que quem pede tem acesso ao servidor. O SETUP_CODE é da plataforma e nunca vai para
+// uma loja: operador pede ao administrador da loja; administrador da loja pede ao dono da plataforma.
 export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -38,13 +40,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Código de configuração incorreto" }, { status: 403 });
   }
 
-  const usuario = await buscarPorIdentificador(parsed.data.identificador);
-  if (!usuario || !usuario.perfil) {
+  const telefone = normalizarTelefone(parsed.data.identificador);
+  const usuario = telefone ? await buscarUsuario(null, { telefone }) : null;
+  if (!usuario) {
     registrarFalha(chave);
-    return NextResponse.json({ error: "Não encontramos um usuário com esse telefone" }, { status: 404 });
+    return NextResponse.json({ error: "Não encontramos um usuário da plataforma com esse telefone" }, { status: 404 });
   }
 
-  const r = await atualizarUsuario(usuario.id, { senha: parsed.data.senha });
+  const r = await atualizarUsuario(usuario.id, null, { senha: parsed.data.senha });
   if (!r.ok) return NextResponse.json({ error: r.erro }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

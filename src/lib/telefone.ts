@@ -33,5 +33,8 @@ export function mascararTelefone(entrada: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
-/** E-mail interno exigido pelo Supabase Auth. Nunca é exibido nem recebe mensagens. */
-export const emailInterno = (digitos: string) => `${digitos}@tel.evolua.test`;
+/**
+ * E-mail interno exigido pelo Supabase Auth (nunca é exibido nem recebe mensagens).
+ * Leva o slug da loja: o mesmo telefone pode existir em lojas diferentes sem colidir.
+ */
+export const emailInterno = (digitos: string, slug: string) => `${digitos}@${slug}.evolua.test`;

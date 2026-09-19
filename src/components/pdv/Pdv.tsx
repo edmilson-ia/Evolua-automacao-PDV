@@ -8,10 +8,13 @@ import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 import { brl } from "@/lib/format";
 import { gerarPayloadPix, gerarTxid, type PixConfig } from "@/lib/pix";
 import type { Perfil } from "@/lib/session";
+import { formatarTelefone } from "@/lib/telefone";
 import type { Branding } from "@/lib/tenant";
+import type { Cliente } from "@/types/cliente";
 import type { Produto } from "@/types/produto";
 import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento } from "@/types/venda";
 import type { Venda } from "@/types/venda";
+import BuscaCliente from "./BuscaCliente";
 import Recibo from "./Recibo";
 
 type CartItem = { produto: Produto; quantidade: number };
@@ -68,6 +71,10 @@ export default function Pdv({
   const [copiado, setCopiado] = useState(false);
 
   const [menuAberto, setMenuAberto] = useState(false);
+  const [clienteAberto, setClienteAberto] = useState(false);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [entrega, setEntrega] = useState(false);
+  const [enderecoEntrega, setEnderecoEntrega] = useState("");
   const [agora, setAgora] = useState<Date | null>(null);
   const [abertura, setAbertura] = useState<Date | null>(null);
   const [online, setOnline] = useState(true);
@@ -86,7 +93,8 @@ export default function Pdv({
   const total = subtotal - descontoNum;
   const recebidoNum = num(recebido);
   const troco = Math.max(recebidoNum - total, 0);
-  const podeFinalizar = carrinho.length > 0 && !enviando && (forma !== "dinheiro" || recebidoNum >= total);
+  const entregaOk = !entrega || enderecoEntrega.trim().length > 0;
+  const podeFinalizar = carrinho.length > 0 && !enviando && entregaOk && (forma !== "dinheiro" || recebidoNum >= total);
 
   // PIX: payload muda com o valor (desconto) — o QR é regerado automaticamente
   const payloadPix =
@@ -287,6 +295,7 @@ export default function Pdv({
     if (carrinho.length === 0) return;
     if (!confirm("Cancelar a venda e limpar o carrinho?")) return;
     setCarrinho([]);
+    setCliente(null);
     setSelecionado(null);
     setUltimo(null);
   }
@@ -297,6 +306,8 @@ export default function Pdv({
       return;
     }
     setForma("dinheiro");
+    setEntrega(false);
+    setEnderecoEntrega(cliente?.endereco ?? "");
     setDesconto("");
     setRecebido("");
     setErroVenda(null);
@@ -318,6 +329,9 @@ export default function Pdv({
           forma_pagamento: forma,
           desconto: descontoNum,
           valor_recebido: forma === "dinheiro" ? recebidoNum : null,
+          cliente_id: cliente?.id ?? null,
+          entrega,
+          entrega_endereco: entrega ? enderecoEntrega : null,
         }),
       });
     } catch {
@@ -336,6 +350,8 @@ export default function Pdv({
     setPagando(false);
     setVendaFeita(json as Venda);
     setCarrinho([]);
+    setCliente(null);
+    setEntrega(false);
     setSelecionado(null);
     setUltimo(null);
   }
@@ -345,10 +361,10 @@ export default function Pdv({
     setTimeout(() => buscaRef.current?.focus(), 50);
   }
 
-  // ---------- atalhos globais (F4 finalizar, F6 produto, F8 remover, F9 cancelar) ----------
+  // ---------- atalhos globais (F4 finalizar, F6 produto, F7 cliente, F8 remover, F9 cancelar) ----------
   useEffect(() => {
     teclasRef.current = (e: KeyboardEvent) => {
-      if (vendaFeita) return;
+      if (vendaFeita || clienteAberto) return; // a consulta de cliente cuida das próprias teclas
       if (pagando) {
         if (e.key === "Escape") setPagando(false);
         return;
@@ -356,6 +372,9 @@ export default function Pdv({
       if (e.key === "F6") {
         e.preventDefault();
         buscaRef.current?.focus();
+      } else if (e.key === "F7") {
+        e.preventDefault();
+        setClienteAberto(true);
       } else if (e.key === "F4") {
         e.preventDefault();
         abrirPagamento();
@@ -431,8 +450,10 @@ export default function Pdv({
               { href: "/dashboard", label: "Dashboard", admin: true },
               { href: "/pdv/vendas", label: "Histórico de vendas", admin: false },
               { href: "/estoque", label: "Estoque", admin: true },
-              { href: "/catalogo", label: "Catálogo público", admin: false },
+              { href: "/clientes", label: "Clientes", admin: false },
+              { href: `/c/${branding.slug}`, label: "Catálogo público", admin: false },
               { href: "/configuracoes/branding", label: "Marca do cliente", admin: true },
+              { href: "/configuracoes/pagamentos", label: "Pagamentos", admin: true },
               { href: "/configuracoes/usuarios", label: "Usuários", admin: true },
             ]
               .filter((l) => perfil === "admin" || !l.admin)
@@ -496,6 +517,7 @@ export default function Pdv({
           <ul className="space-y-1 px-4 pb-3 text-sm text-gray-600">
             <li><kbd className="rounded border bg-gray-100 px-1.5">F4</kbd> Finalizar venda</li>
             <li><kbd className="rounded border bg-gray-100 px-1.5">F6</kbd> Buscar produto</li>
+            <li><kbd className="rounded border bg-gray-100 px-1.5">F7</kbd> Pesquisar / escolher cliente</li>
             <li><kbd className="rounded border bg-gray-100 px-1.5">F8</kbd> Remover item (selecionado ou último)</li>
             <li><kbd className="rounded border bg-gray-100 px-1.5">F9</kbd> Cancelar venda</li>
             <li><kbd className="rounded border bg-gray-100 px-1.5">3x produto</kbd> Vender 3 unidades</li>
@@ -639,6 +661,18 @@ export default function Pdv({
               </p>
             )}
 
+            {cliente && (
+              <p className="mb-2 flex items-center justify-between gap-2 rounded-lg border-2 border-emerald-500 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-900">
+                <span className="min-w-0 truncate">
+                  <strong>Cliente:</strong> {cliente.nome}
+                  {cliente.telefone && ` · ${formatarTelefone(cliente.telefone)}`}
+                </span>
+                <button onClick={() => setCliente(null)} aria-label="Remover cliente da venda" className="shrink-0 font-bold text-emerald-800 hover:text-red-600">
+                  ✕
+                </button>
+              </p>
+            )}
+
             <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap sm:gap-3">
               <label className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                 <span className="text-sm text-gray-500">Produto (F6)</span>
@@ -678,6 +712,13 @@ export default function Pdv({
                 />
               </label>
               <button
+                onClick={() => setClienteAberto(true)}
+                className="h-[54px] whitespace-nowrap rounded-lg border-2 bg-white px-3 text-base font-bold hover:bg-gray-50 sm:px-4"
+                style={{ borderColor: cor, color: cor }}
+              >
+                Cliente<span className="hidden sm:inline"> (F7)</span>
+              </button>
+              <button
                 onClick={abrirPagamento}
                 className="h-[54px] min-w-0 flex-1 rounded-lg bg-emerald-600 px-4 text-lg font-bold text-white hover:bg-emerald-700 sm:flex-none sm:px-6"
               >
@@ -697,6 +738,21 @@ export default function Pdv({
         <div className="hidden text-xs text-white/80 sm:block">{branding.nome_fantasia} • PDV</div>
         <div className="text-2xl font-semibold tabular-nums text-amber-300 sm:text-3xl">{hora}</div>
       </footer>
+
+      {/* ===== Pesquisar cliente (só consulta) ===== */}
+      {clienteAberto && (
+        <BuscaCliente
+          onSelecionar={(c) => {
+            setCliente(c);
+            setClienteAberto(false);
+            setTimeout(() => buscaRef.current?.focus(), 50);
+          }}
+          onFechar={() => {
+            setClienteAberto(false);
+            setTimeout(() => buscaRef.current?.focus(), 50);
+          }}
+        />
+      )}
 
       {/* ===== Pagamento ===== */}
       {pagando && (
@@ -771,7 +827,7 @@ export default function Pdv({
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-red-700">Chave PIX não configurada (defina PIX_KEY no .env.local).</p>
+                  <p className="text-sm text-red-700">Chave PIX não configurada (Configurações → Pagamentos).</p>
                 )}
               </div>
             )}
@@ -812,6 +868,37 @@ export default function Pdv({
                 </div>
               </>
             )}
+
+            <div className="mb-3 rounded-xl border border-gray-300 p-3">
+              <label className={`flex items-center gap-2 font-semibold ${cliente ? "" : "text-gray-400"}`}>
+                <input
+                  type="checkbox"
+                  checked={entrega}
+                  disabled={!cliente}
+                  onChange={(e) => setEntrega(e.target.checked)}
+                  className="h-5 w-5"
+                />
+                É entrega?
+              </label>
+              {!cliente && <p className="mt-1 text-xs text-gray-500">Para entrega, escolha um cliente antes (Esc e depois F7).</p>}
+              {entrega && (
+                <label className="mt-2 block">
+                  <span className="text-sm text-gray-600">
+                    Endereço da entrega ({cliente?.nome}
+                    {cliente?.telefone ? ` · ${formatarTelefone(cliente.telefone)}` : ""})
+                  </span>
+                  <textarea
+                    value={enderecoEntrega}
+                    onChange={(e) => setEnderecoEntrega(e.target.value)}
+                    maxLength={200}
+                    rows={2}
+                    placeholder="Rua, número, bairro, cidade"
+                    className="mt-1 w-full rounded-lg border-2 border-gray-300 px-3 py-2 outline-none focus:border-sky-500"
+                  />
+                  {!entregaOk && <span className="text-xs text-red-600">Informe o endereço da entrega.</span>}
+                </label>
+              )}
+            </div>
 
             {erroVenda && <p className="mb-2 text-sm text-red-600">{erroVenda}</p>}
 

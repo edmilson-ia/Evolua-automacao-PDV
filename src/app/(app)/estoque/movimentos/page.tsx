@@ -3,7 +3,6 @@ import { exigirPagina } from "@/lib/auth";
 import FormMovimento, { type ProdutoMov } from "@/components/estoque/FormMovimento";
 import { dataHoraBR } from "@/lib/format";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +28,7 @@ export default async function MovimentosPage({
 }: {
   searchParams: Promise<{ tipo?: string }>;
 }) {
-  await exigirPagina(["admin"]);
+  const sessao = await exigirPagina(["admin"]);
   const { tipo } = await searchParams;
   const db = createServerClient();
 
@@ -37,14 +36,14 @@ export default async function MovimentosPage({
     db
       .from("produtos")
       .select("id, nome, sku, quantidade, unidade, preco_custo")
-      .eq("tenant_id", getTenantId())
+      .eq("tenant_id", sessao.tenantId)
       .eq("ativo", true)
       .order("nome"),
     (() => {
       let q = db
         .from("movimentos_estoque")
         .select("id, tipo, quantidade, motivo, criado_em, operador_nome, produtos(nome, sku, unidade)")
-        .eq("tenant_id", getTenantId())
+        .eq("tenant_id", sessao.tenantId)
         .order("criado_em", { ascending: false })
         .limit(150);
       if (tipo && tipo in BADGE) q = q.eq("tipo", tipo);

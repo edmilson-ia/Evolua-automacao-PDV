@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { exigirPagina } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 import { brl } from "@/lib/format";
 import type { Produto } from "@/types/produto";
 import ExcluirProdutoButton from "@/components/estoque/ExcluirProdutoButton";
@@ -13,12 +12,12 @@ export default async function EstoquePage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await exigirPagina(["admin"]);
+  const sessao = await exigirPagina(["admin"]);
   const { q } = await searchParams;
   let query = createServerClient()
     .from("produtos")
     .select("*")
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .eq("ativo", true)
     .order("nome");
   if (q) query = query.or(`nome.ilike.%${q}%,sku.ilike.%${q}%`);

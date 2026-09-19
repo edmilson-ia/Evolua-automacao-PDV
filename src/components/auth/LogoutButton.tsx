@@ -2,7 +2,15 @@
 
 import { useRouter } from "next/navigation";
 
-export default function LogoutButton({ className, children = "Sair" }: { className?: string; children?: React.ReactNode }) {
+export default function LogoutButton({
+  className,
+  children = "Sair",
+  destino = "/login",
+}: {
+  className?: string;
+  children?: React.ReactNode;
+  destino?: string;
+}) {
   const router = useRouter();
 
   async function sair() {
@@ -12,7 +20,7 @@ export default function LogoutButton({ className, children = "Sair" }: { classNa
       const nomes = await caches.keys();
       await Promise.all(nomes.filter((n) => n.startsWith("evolua-pages")).map((n) => caches.delete(n)));
     }
-    router.replace("/login");
+    router.replace(destino);
     router.refresh();
   }
   return (

@@ -1,23 +1,24 @@
 import { NextResponse } from "next/server";
-import { exigirApi, getSessao } from "@/lib/auth";
+import { exigirApi } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
+import { ERRO_IMAGEM_FORA, imagemEhDaLoja } from "@/lib/storage";
 import { produtoSchema } from "@/types/produto";
 
 const COLUNAS_OPERADOR =
   "id, tenant_id, categoria_id, nome, sku, descricao, imagem_url, preco_venda, quantidade, estoque_minimo, unidade, visivel_catalogo, ativo";
 
 export async function GET(req: Request) {
-  const negado = await exigirApi();
-  if (negado) return negado;
+  const acesso = await exigirApi();
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const busca = new URL(req.url).searchParams.get("q");
   // Preço de custo é informação do administrador: o operador (caixa) não o recebe
-  const admin = (await getSessao())?.perfil === "admin";
+  const admin = sessao.perfil === "admin";
   const db = createServerClient();
   let query = db
     .from("produtos")
     .select(admin ? "*" : COLUNAS_OPERADOR)
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .eq("ativo", true)
     .order("nome");
   if (busca) query = query.or(`nome.ilike.%${busca}%,sku.ilike.%${busca}%`);
@@ -27,16 +28,20 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const negado = await exigirApi(["admin"]);
-  if (negado) return negado;
+  const acesso = await exigirApi(["admin"]);
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const parsed = produtoSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
+  if (!imagemEhDaLoja(sessao.tenantId, parsed.data.imagem_url)) {
+    return NextResponse.json({ error: ERRO_IMAGEM_FORA }, { status: 400 });
+  }
   const db = createServerClient();
   const { data, error } = await db
     .from("produtos")
-    .insert({ ...parsed.data, tenant_id: getTenantId() })
+    .insert({ ...parsed.data, tenant_id: sessao.tenantId })
     .select()
     .single();
   if (error) {

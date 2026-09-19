@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { exigirApi, getSessao } from "@/lib/auth";
+import { exigirApi } from "@/lib/auth";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 
 const movimentoSchema = z.object({
   produto_id: z.string().uuid(),
@@ -14,14 +13,15 @@ const movimentoSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const negado = await exigirApi(["admin"]);
-  if (negado) return negado;
+  const acesso = await exigirApi(["admin"]);
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const sp = new URL(req.url).searchParams;
   const limite = Math.min(Number(sp.get("limit")) || 200, 500);
   let query = createServerClient()
     .from("movimentos_estoque")
     .select("id, tipo, quantidade, motivo, criado_em, venda_id, operador_nome, produtos(nome, sku, unidade)")
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .order("criado_em", { ascending: false })
     .limit(limite);
   const produto = sp.get("produto_id");
@@ -34,10 +34,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const negado = await exigirApi(["admin"]);
-  if (negado) return negado;
-  const sessao = await getSessao();
-  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const acesso = await exigirApi(["admin"]);
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const parsed = movimentoSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
     .from("produtos")
     .select("id, nome, quantidade, unidade")
     .eq("id", m.produto_id)
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .eq("ativo", true)
     .single();
   if (!produto) return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
@@ -82,7 +81,7 @@ export async function POST(req: Request) {
   }
 
   const { error } = await db.rpc("registrar_movimento", {
-    p_tenant_id: getTenantId(),
+    p_tenant_id: sessao.tenantId,
     p_produto_id: m.produto_id,
     p_tipo: tipoReal,
     p_quantidade: qtdMov,
@@ -94,7 +93,7 @@ export async function POST(req: Request) {
 
   // Entrada com custo informado atualiza o preço de custo do produto
   if (tipoReal === "entrada" && m.tipo === "entrada" && m.preco_custo != null) {
-    await db.from("produtos").update({ preco_custo: m.preco_custo }).eq("id", m.produto_id).eq("tenant_id", getTenantId());
+    await db.from("produtos").update({ preco_custo: m.preco_custo }).eq("id", m.produto_id).eq("tenant_id", sessao.tenantId);
   }
 
   const nova = tipoReal === "entrada" ? atual + qtdMov : atual - qtdMov;

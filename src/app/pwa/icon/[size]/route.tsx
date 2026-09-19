@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
-import { BRANDING_PADRAO, getBranding } from "@/lib/tenant";
+import { BRANDING_PADRAO, getLojaPorSlug } from "@/lib/tenant";
 
 // Gera os ícones do PWA (PNG) a partir do branding do cliente:
 //   1) ícone dedicado (icone_url): ocupa o quadrado inteiro;
@@ -27,8 +27,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ size: st
   const size = Number((await params).size);
   if (!TAMANHOS.has(size)) return new Response("Tamanho inválido", { status: 404 });
 
-  const maskable = new URL(req.url).searchParams.get("maskable") === "1";
-  const b = await getBranding();
+  const params_ = new URL(req.url).searchParams;
+  const maskable = params_.get("maskable") === "1";
+  const slug = params_.get("loja");
+  // A marca é pública: quem baixa o ícone (instalação do app, iPhone) pode não mandar cookie, então a loja vem na URL
+  const b = (slug ? await getLojaPorSlug(slug) : null) ?? BRANDING_PADRAO;
   const cor = b.cor_primaria ?? BRANDING_PADRAO.cor_primaria!;
 
   let imagem: string | null = null;

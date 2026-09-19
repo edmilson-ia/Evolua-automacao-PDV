@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import PwaRegister from "@/components/pwa/PwaRegister";
-import { iconeVersao } from "@/lib/pwa";
-import { BRANDING_PADRAO, getBranding } from "@/lib/tenant";
+import { getSessao } from "@/lib/auth";
+import { urlIcone } from "@/lib/pwa";
+import { BRANDING_PADRAO, getBranding, type Branding } from "@/lib/tenant";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,24 +16,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** Marca da loja de quem está logado (sem sessão, ou dono da plataforma: marca padrão). */
+async function brandingDaSessao(): Promise<Branding> {
+  const s = await getSessao();
+  return getBranding(s?.tenantId ?? null);
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const b = await getBranding();
-  const v = iconeVersao(b);
+  const b = await brandingDaSessao();
   return {
     title: b.nome_fantasia,
     description: "PDV, controle de estoque e catálogo de produtos",
     applicationName: b.nome_fantasia,
+    // O manifest é por loja (nome, cor e ícones dela). Sem loja definida, não há app para instalar.
+    ...(b.slug ? { manifest: `/c/${b.slug}/manifest.webmanifest` } : {}),
     // iOS: abre em tela cheia quando adicionado à tela de início
     appleWebApp: { capable: true, title: b.nome_fantasia, statusBarStyle: "default" },
     icons: {
-      icon: [{ url: `/pwa/icon/192?v=${v}`, sizes: "192x192", type: "image/png" }],
-      apple: [{ url: `/pwa/icon/180?v=${v}`, sizes: "180x180", type: "image/png" }],
+      icon: [{ url: urlIcone(b, 192), sizes: "192x192", type: "image/png" }],
+      apple: [{ url: urlIcone(b, 180), sizes: "180x180", type: "image/png" }],
     },
   };
 }
 
 export async function generateViewport(): Promise<Viewport> {
-  const b = await getBranding();
+  const b = await brandingDaSessao();
   return {
     themeColor: b.cor_primaria ?? BRANDING_PADRAO.cor_primaria!,
     width: "device-width",
@@ -42,7 +50,7 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const b = await getBranding();
+  const b = await brandingDaSessao();
   return (
     <html
       lang="pt-BR"

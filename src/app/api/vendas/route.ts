@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { exigirApi, getSessao } from "@/lib/auth";
+import { exigirApi } from "@/lib/auth";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 import { dayRangeSP } from "@/lib/format";
 
 const vendaSchema = z.object({
@@ -12,21 +11,24 @@ const vendaSchema = z.object({
   forma_pagamento: z.enum(["dinheiro", "debito", "credito", "pix"]),
   desconto: z.coerce.number().min(0).default(0),
   valor_recebido: z.coerce.number().min(0).nullable().optional(),
+  // Só o id do cliente: nome e telefone o banco copia do cadastro (o corpo não decide isso)
+  cliente_id: z.string().uuid().nullish(),
+  entrega: z.boolean().default(false),
+  entrega_endereco: z.string().trim().max(200, "Endereço muito longo (máx. 200)").nullish(),
 });
 
 const SELECT_VENDA = "*, itens_venda(id, quantidade, preco_unitario, subtotal, produtos(nome, unidade))";
 
 export async function GET(req: Request) {
-  const negado = await exigirApi();
-  if (negado) return negado;
-  const sessao = await getSessao();
-  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const acesso = await exigirApi();
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const data = new URL(req.url).searchParams.get("data");
   const { inicio, fim } = dayRangeSP(data);
   let query = createServerClient()
     .from("vendas")
     .select(SELECT_VENDA)
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .gte("criado_em", inicio)
     .lt("criado_em", fim)
     .order("criado_em", { ascending: false });
@@ -38,10 +40,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const negado = await exigirApi();
-  if (negado) return negado;
-  const sessao = await getSessao();
-  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const acesso = await exigirApi();
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const parsed = vendaSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
@@ -50,13 +51,16 @@ export async function POST(req: Request) {
   const db = createServerClient();
 
   const { data: vendaId, error } = await db.rpc("fechar_venda", {
-    p_tenant_id: getTenantId(),
+    p_tenant_id: sessao.tenantId,
     p_itens: v.itens,
     p_forma_pagamento: v.forma_pagamento,
     p_desconto: v.desconto,
     p_valor_recebido: v.valor_recebido ?? null,
     p_operador_id: sessao.id,
     p_operador_nome: sessao.nome,
+    p_cliente_id: v.cliente_id ?? null,
+    p_entrega: v.entrega,
+    p_entrega_endereco: v.entrega ? (v.entrega_endereco ?? null) : null,
   });
   if (error) {
     // Erros de regra (estoque insuficiente etc.) vêm de raise exception (P0001)

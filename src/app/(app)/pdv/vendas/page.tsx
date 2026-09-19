@@ -1,6 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { exigirPagina } from "@/lib/auth";
-import { getTenantId } from "@/lib/tenant";
+import { getConfigPagamento } from "@/lib/tenant";
 import { brl, dataHoraBR, dayRangeSP } from "@/lib/format";
 import { calcularLiquido, pctBR } from "@/lib/taxas";
 import { FORMA_LABEL, FORMAS_PDV, type FormaPagamento, type Venda } from "@/types/venda";
@@ -20,11 +20,12 @@ export default async function HistoricoVendasPage({
   const podeCancelar = sessao.perfil === "admin";
   const { data } = await searchParams;
   const { dia, inicio, fim } = dayRangeSP(data);
+  const taxas = await getConfigPagamento(sessao.tenantId);
 
   let query = createServerClient()
     .from("vendas")
     .select("*, itens_venda(id, quantidade, preco_unitario, subtotal, produtos(nome, unidade))")
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", sessao.tenantId)
     .gte("criado_em", inicio)
     .lt("criado_em", fim)
     .order("criado_em", { ascending: false });
@@ -40,7 +41,7 @@ export default async function HistoricoVendasPage({
   // Débito/crédito: o líquido desconta a taxa da maquininha. Demais formas: líquido = bruto.
   const porForma = concluidas.reduce<Partial<Record<FormaPagamento, Soma>>>((acc, v) => {
     const atual = acc[v.forma_pagamento] ?? { bruto: 0, liquido: 0 };
-    const { liquido } = calcularLiquido(v.forma_pagamento, Number(v.total));
+    const { liquido } = calcularLiquido(v.forma_pagamento, Number(v.total), taxas);
     acc[v.forma_pagamento] = { bruto: atual.bruto + Number(v.total), liquido: atual.liquido + liquido };
     return acc;
   }, {});
@@ -80,7 +81,7 @@ export default async function HistoricoVendasPage({
         {/* "cartao" (legado) só aparece se houver vendas antigas no dia */}
         {[...FORMAS_PDV, ...(porForma.cartao ? (["cartao"] as const) : [])].map((f) => {
           const s = porForma[f] ?? { bruto: 0, liquido: 0 };
-          const { taxaPct } = calcularLiquido(f, 0);
+          const { taxaPct } = calcularLiquido(f, 0, taxas);
           return (
             <div key={f} className="rounded-lg border border-gray-200 bg-white p-3">
               <div className="text-xs text-gray-500">
@@ -97,7 +98,7 @@ export default async function HistoricoVendasPage({
       <ul className="space-y-2">
         {lista.map((v) => {
           const total = Number(v.total);
-          const { taxaPct, taxa, liquido } = calcularLiquido(v.forma_pagamento, total);
+          const { taxaPct, taxa, liquido } = calcularLiquido(v.forma_pagamento, total, taxas);
           const cancelada = v.status === "cancelada";
           const temTaxa = taxaPct > 0 && !cancelada;
           return (
@@ -106,10 +107,14 @@ export default async function HistoricoVendasPage({
                 <summary className="flex cursor-pointer items-center justify-between gap-3 p-3">
                   <span className="text-sm text-gray-600">
                     {dataHoraBR(v.criado_em)}
-                    <span className="block text-xs text-gray-500">{v.operador_nome ?? "Operador não registrado"}</span>
+                    <span className="block text-xs text-gray-500">
+                      {v.operador_nome ?? "Operador não registrado"}
+                      {v.cliente_nome && ` · Cliente: ${v.cliente_nome}`}
+                    </span>
                   </span>
                   <span className="text-sm">
                     {FORMA_LABEL[v.forma_pagamento]}
+                    {v.entrega && <span className="ml-2 rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">ENTREGA</span>}
                     {cancelada && <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">CANCELADA</span>}
                   </span>
                   <span className="text-right">

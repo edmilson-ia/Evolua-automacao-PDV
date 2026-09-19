@@ -1,6 +1,6 @@
 # Evolua Automação PDV
 
-Sistema de **PDV (frente de caixa) + estoque + catálogo**, **white-label** (cada cliente coloca a própria marca) e instalável como **app no celular (PWA)**.
+Sistema de **PDV (frente de caixa) + estoque + catálogo**, **white-label** (cada loja coloca a própria marca), **várias lojas na mesma instalação** e instalável como **app no celular (PWA)**.
 
 Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 · **Supabase** (Postgres, Auth e Storage).
 
@@ -12,8 +12,11 @@ Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 �
 | **Vendas** (`/pdv/vendas`) | Histórico por dia com **quem vendeu** (o operador vê só as próprias vendas; o admin vê todas), totais por forma de pagamento, **valor líquido após taxa de cartão** (débito 2,0% / crédito 3,5%), **cancelamento de venda** (devolve o estoque) |
 | **Estoque** (`/estoque`) | CRUD de produtos com foto e categoria, alerta de estoque baixo, **movimentos** (entrada, saída e ajuste de inventário) |
 | **Dashboard** (`/dashboard`) | Faturamento bruto/líquido, ticket médio, gráfico por hora/dia, mais vendidos, valor em estoque, **margem de lucro**, **vendas por operador** |
-| **Catálogo público** (`/catalogo`) | Vitrine por categoria com busca; não expõe custo nem estoque exato |
-| **Marca** (`/configuracoes/branding`) | Nome, cor, logo e ícone do app por cliente |
+| **Catálogo público** (`/c/<loja>`) | Vitrine por categoria com busca; não expõe custo nem estoque exato |
+| **Clientes** (`/clientes`) | Cadastro de clientes (nome, telefone, endereço, e-mail) por loja; o operador busca e cadastra, só o admin edita e exclui. No PDV (F7) o cliente é escolhido para a venda e pode ser marcada **entrega** (endereço vai no recibo e no histórico) |
+| **Marca** (`/configuracoes/branding`) | Nome, cor, logo e ícone do app por loja |
+| **Pagamentos** (`/configuracoes/pagamentos`) | Chave PIX, cidade e taxas de cartão por loja |
+| **Plataforma** (`/plataforma`) | Só o dono (super-admin): cria lojas e o primeiro admin, suspende/reativa, redefine senhas |
 | **Usuários** (`/configuracoes/usuarios`) | Login por **telefone**; perfis **administrador** e **operador (caixa)** |
 | **PWA** | Manifest dinâmico por marca, ícones gerados, service worker próprio (telas em cache; API nunca), botão "Instalar app" |
 
@@ -36,6 +39,8 @@ Rode, **nesta ordem**, os arquivos de `supabase/migrations/`:
 3. `0003_formas_pagamento.sql` — débito e crédito
 4. `0004_cancelar_venda.sql` — cancelamento de venda
 5. `0005_quem_vendeu.sql` — operador em vendas e movimentos, tabela `auditoria`
+6. `0006_multi_loja.sql` — lojas com `slug`, PIX/taxas por loja, clientes, RLS
+7. `0007_venda_cliente_entrega.sql` — cliente e entrega na venda
 
 ### 2) Variáveis de ambiente (`.env.local`)
 
@@ -44,20 +49,20 @@ Rode, **nesta ordem**, os arquivos de `supabase/migrations/`:
 | `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave **secreta** do Supabase (só servidor) |
 | `SESSION_SECRET` | Assina o cookie de sessão (mín. 32 caracteres aleatórios) |
-| `SETUP_CODE` | Código do primeiro acesso e da recuperação de senha do administrador |
-| `PIX_KEY` / `PIX_CITY` | Chave PIX exibida no QR Code do PDV e cidade do recebedor |
+| `SETUP_CODE` | Código do primeiro acesso da plataforma e da recuperação de senha do dono (**não** entregue a clientes) |
 
 > Nunca faça commit do `.env.local` (já está no `.gitignore`).
 
 ### 3) Primeiro acesso
 
-Abra `/setup`, informe o `SETUP_CODE`, seu nome, telefone e senha: isso cria o **administrador**. Depois disso a tela some. Novos usuários são criados em **Usuários**.
+Abra `/plataforma/setup`, informe o `SETUP_CODE`, seu nome, telefone e senha: isso cria o **dono da plataforma (super-admin)**. Depois disso a tela some. Em `/plataforma` você cria cada **loja** e o primeiro **administrador** dela; a loja entra pelo link `/c/<endereço-da-loja>/login`. Os demais usuários da loja são criados por ela em **Usuários**. A chave PIX e as taxas de cartão de cada loja ficam em **Pagamentos**.
 
 ## Segurança
 
-- Login por telefone; senha guardada pelo Supabase Auth; sessão em cookie `httpOnly` assinado (12 h); freio de tentativas.
+- Login por telefone **dentro da loja** (o mesmo telefone pode existir em lojas diferentes); senha guardada pelo Supabase Auth; sessão em cookie `httpOnly` assinado (12 h) que carrega a loja (`tid`); freio de tentativas.
+- **Isolamento entre lojas:** a loja vem SEMPRE da sessão (nunca do corpo ou da URL) e toda consulta filtra por ela; imagens só da pasta da própria loja; loja suspensa perde o acesso em até 30 s. No banco, RLS ligado sem policies e funções fechadas para a chave pública: só o servidor acessa.
 - Duas camadas de proteção: `src/proxy.ts` (filtro rápido) e verificação em **cada** rota de API e página sensível (`exigirApi` / `exigirPagina`).
-- **Operador** só acessa PDV, histórico de vendas e catálogo, e **não recebe preço de custo**.
+- **Operador** só acessa PDV, as próprias vendas, clientes (buscar/cadastrar) e catálogo, e **não recebe preço de custo**.
 - Ao criar uma rota nova: chame `exigirApi`/`exigirPagina` e, se o operador puder usá-la, libere no `proxy.ts`.
 - Enquanto o cadastro público do Supabase Auth estiver ligado, desative **"Allow new users to sign up"** no painel.
 
@@ -68,7 +73,8 @@ src/
   app/
     (app)/       painel: dashboard, estoque, vendas, configurações
     (caixa)/     PDV em tela cheia
-    (public)/    login, setup, recuperar senha, catálogo, offline
+    (public)/    login, recuperar senha, offline e /c/<loja> (catálogo, login e manifest de cada loja)
+    plataforma/  área do dono: lojas, onboarding
     api/         rotas de API (auth, produtos, vendas, movimentos, usuários...)
     manifest.ts  manifest do PWA (dinâmico por marca)
     pwa/icon/    ícones PNG gerados a partir da marca
@@ -85,6 +91,7 @@ Scripts de teste (rodam contra o servidor local, criam só dados "TESTE" e apaga
 
 ```bash
 node --env-file=.env.local scripts/test-quem-vendeu.mjs
+node --env-file=.env.local scripts/test-multi-loja.mjs   # isolamento entre lojas
 ```
 
 ## Publicação e app no celular

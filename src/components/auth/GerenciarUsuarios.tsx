@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { UsuarioAuth } from "@/lib/supabase/auth-admin";
 import { formatarTelefone, mascararTelefone } from "@/lib/telefone";
 
-const PERFIL_TXT = { admin: "Administrador", operador: "Operador (caixa)" } as const;
+const PERFIL_TXT = { admin: "Administrador", operador: "Operador (caixa)", super_admin: "Plataforma" } as const;
 
 async function erroDe(res: Response, padrao: string) {
   const j = await res.json().catch(() => null);

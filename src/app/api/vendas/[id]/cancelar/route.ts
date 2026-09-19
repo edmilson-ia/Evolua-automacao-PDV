@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { exigirApi, getSessao } from "@/lib/auth";
+import { exigirApi } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 
 const schema = z.object({
   motivo: z
@@ -14,10 +13,9 @@ const schema = z.object({
 
 // Cancelar venda já concluída é ação de administrador: mexe no caixa e no estoque.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const negado = await exigirApi(["admin"]);
-  if (negado) return negado;
-  const sessao = await getSessao();
-  if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const acesso = await exigirApi(["admin"]);
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
 
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) {
@@ -29,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const { error } = await createServerClient().rpc("cancelar_venda", {
-    p_tenant_id: getTenantId(),
+    p_tenant_id: sessao.tenantId,
     p_venda_id: id,
     p_motivo: parsed.data.motivo,
     p_operador_id: sessao.id,

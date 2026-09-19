@@ -1,6 +1,6 @@
 import GerenciarUsuarios from "@/components/auth/GerenciarUsuarios";
 import { exigirPagina } from "@/lib/auth";
-import { listarUsuarios } from "@/lib/supabase/auth-admin";
+import { listarUsuariosDaLoja } from "@/lib/supabase/auth-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export default async function UsuariosPage() {
         O <strong>administrador</strong> acessa tudo. O <strong>operador (caixa)</strong> só usa o PDV e vê o histórico
         de vendas, sem preço de custo, estoque ou configurações.
       </p>
-      <GerenciarUsuarios usuarios={await listarUsuarios()} meuId={sessao.id} />
+      <GerenciarUsuarios usuarios={await listarUsuariosDaLoja(sessao.tenantId)} meuId={sessao.id} />
     </main>
   );
 }

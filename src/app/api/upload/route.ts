@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { exigirApi } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getTenantId } from "@/lib/tenant";
 
 const TIPOS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export async function POST(req: Request) {
-  const negado = await exigirApi(["admin"]);
-  if (negado) return negado;
+  const acesso = await exigirApi(["admin"]);
+  if (!acesso.ok) return acesso.resposta;
+  const { sessao } = acesso;
   const form = await req.formData();
   const file = form.get("file");
   // "pasta" separa imagens de produto das de branding (logo/ícone)
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "Imagem acima de 5 MB" }, { status: 400 });
 
   const db = createServerClient();
-  const path = `${getTenantId()}/${pasta}/${crypto.randomUUID()}.${ext}`;
+  const path = `${sessao.tenantId}/${pasta}/${crypto.randomUUID()}.${ext}`;
   const { error } = await db.storage.from("produtos").upload(path, file, { contentType: file.type });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -10,7 +10,8 @@ const destinoSeguro = (d: string | null) => (d && d.startsWith("/") && !d.starts
 // Aplica a máscara de telefone; se a pessoa digitar letras/@ (acesso antigo por e-mail), deixa como está
 const mascarar = (v: string) => (/[@a-zA-Z]/.test(v) ? v : mascararTelefone(v));
 
-export default function FormLogin({ de, modo }: { de: string | null; modo: "login" | "setup" }) {
+/** modo "login": entra na loja `loja` (sem loja = dono da plataforma). modo "setup": primeiro acesso da plataforma. */
+export default function FormLogin({ de, modo, loja }: { de: string | null; modo: "login" | "setup"; loja?: string }) {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
@@ -24,10 +25,10 @@ export default function FormLogin({ de, modo }: { de: string | null; modo: "logi
     setErro("");
     setEnviando(true);
     try {
-      const res = await fetch(modo === "login" ? "/api/auth/login" : "/api/auth/setup", {
+      const res = await fetch(modo === "login" ? "/api/auth/login" : "/api/plataforma/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(modo === "login" ? { identificador: telefone, senha } : { codigo, nome, telefone, senha }),
+        body: JSON.stringify(modo === "login" ? { loja, identificador: telefone, senha } : { codigo, nome, telefone, senha }),
       });
       const j = await res.json().catch(() => null);
       if (!res.ok) throw new Error(j?.error ?? "Não foi possível entrar");
@@ -93,10 +94,14 @@ export default function FormLogin({ de, modo }: { de: string | null; modo: "logi
         </div>
         {modo === "setup" && <p className="mt-1 text-xs text-gray-500">Mínimo de 8 caracteres.</p>}
         {modo === "login" && (
-          <div className="mt-2 text-right">
-            <Link href="/recuperar-senha" className="text-sm font-medium text-brand hover:underline">
-              Esqueceu sua senha?
-            </Link>
+          <div className="mt-2 text-right text-sm">
+            {loja ? (
+              <span className="text-gray-500">Esqueceu a senha? Peça ao administrador da loja.</span>
+            ) : (
+              <Link href="/recuperar-senha" className="font-medium text-brand hover:underline">
+                Esqueceu sua senha?
+              </Link>
+            )}
           </div>
         )}
       </div>
@@ -106,7 +111,7 @@ export default function FormLogin({ de, modo }: { de: string | null; modo: "logi
         </p>
       )}
       <button disabled={enviando} className="w-full rounded-lg bg-brand py-3 text-lg font-semibold text-white disabled:opacity-50">
-        {enviando ? "Aguarde..." : modo === "login" ? "Entrar" : "Criar administrador e entrar"}
+        {enviando ? "Aguarde..." : modo === "login" ? "Entrar" : "Criar acesso do dono e entrar"}
       </button>
     </form>
   );

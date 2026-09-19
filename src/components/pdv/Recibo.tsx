@@ -1,4 +1,5 @@
 import { brl, dataHoraBR } from "@/lib/format";
+import { formatarTelefone } from "@/lib/telefone";
 import { FORMA_LABEL, type Venda } from "@/types/venda";
 
 // Comprovante interno, NÃO fiscal.
@@ -10,6 +11,7 @@ export default function Recibo({ venda, nomeFantasia = "Evolua Automação" }: {
       <div className="text-center text-xs">Comprovante não fiscal</div>
       <div className="text-center text-xs">{dataHoraBR(venda.criado_em)}</div>
       {venda.operador_nome && <div className="text-center text-xs">Operador: {venda.operador_nome}</div>}
+      {venda.cliente_nome && <div className="text-center text-xs">Cliente: {venda.cliente_nome}</div>}
       <hr className="border-dashed my-2" />
       {venda.itens_venda.map((i) => (
         <div key={i.id} className="flex justify-between gap-2">
@@ -32,6 +34,15 @@ export default function Recibo({ venda, nomeFantasia = "Evolua Automação" }: {
         <>
           <div className="flex justify-between"><span>Recebido</span><span>{brl(Number(venda.valor_recebido))}</span></div>
           <div className="flex justify-between"><span>Troco</span><span>{brl(Number(venda.troco ?? 0))}</span></div>
+        </>
+      )}
+      {venda.entrega && (
+        <>
+          <hr className="border-dashed my-2" />
+          <div className="font-bold">ENTREGA</div>
+          <div>{venda.cliente_nome}</div>
+          {venda.cliente_telefone && <div>{formatarTelefone(venda.cliente_telefone)}</div>}
+          <div className="break-words">{venda.entrega_endereco}</div>
         </>
       )}
       <div className="text-center text-xs mt-3">Obrigado pela preferência!</div>

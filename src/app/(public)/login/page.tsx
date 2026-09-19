@@ -1,37 +1,29 @@
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import CartaoAuth from "@/components/auth/CartaoAuth";
-import FormLogin from "@/components/auth/FormLogin";
-import { getSessao } from "@/lib/auth";
-import { listarUsuarios } from "@/lib/supabase/auth-admin";
-import { getBranding } from "@/lib/tenant";
+import FormCodigoLoja from "@/components/auth/FormCodigoLoja";
+import { getSessaoAtiva } from "@/lib/auth";
+import { slugSchema } from "@/lib/loja";
+import { COOKIE_LOJA, paginaInicial } from "@/lib/session";
+import { BRANDING_PADRAO } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Entrar" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ de?: string }> }) {
-  const sessao = await getSessao();
-  if (sessao) redirect(sessao.perfil === "admin" ? "/dashboard" : "/pdv");
+// Porta de entrada sem loja no endereço: manda para o login da última loja usada neste aparelho;
+// se não houver (ou a pessoa pedir para trocar), pergunta o endereço da loja.
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ de?: string; trocar?: string }> }) {
+  const sessao = await getSessaoAtiva();
+  if (sessao) redirect(paginaInicial(sessao.perfil));
 
-  const [{ de }, branding, usuarios] = await Promise.all([
-    searchParams,
-    getBranding(),
-    listarUsuarios().catch(() => null),
-  ]);
+  const { de, trocar } = await searchParams;
+  const ultima = slugSchema.safeParse((await cookies()).get(COOKIE_LOJA)?.value);
+  if (ultima.success && !trocar) redirect(`/c/${ultima.data}/login${de ? `?de=${encodeURIComponent(de)}` : ""}`);
 
   return (
-    <CartaoAuth branding={branding} titulo="Entrar" subtitulo="PDV e controle de estoque">
-      {usuarios && usuarios.length === 0 && (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          Nenhum usuário cadastrado ainda.{" "}
-          <Link href="/setup" className="font-semibold underline">
-            Configure o administrador
-          </Link>
-          .
-        </p>
-      )}
-      <FormLogin de={de ?? null} modo="login" />
+    <CartaoAuth branding={BRANDING_PADRAO} titulo="Qual é a sua loja?" subtitulo="PDV e controle de estoque">
+      <FormCodigoLoja />
     </CartaoAuth>
   );
 }

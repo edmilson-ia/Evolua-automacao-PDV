@@ -43,7 +43,7 @@ export default function FormRecuperarSenha() {
     return (
       <div className="space-y-4 text-center">
         <p className="rounded-lg bg-emerald-50 p-4 text-emerald-800">✔ Senha redefinida! Entre com a nova senha.</p>
-        <Link href="/login" className="block w-full rounded-lg bg-brand py-3 text-lg font-semibold text-white">
+        <Link href="/plataforma/login" className="block w-full rounded-lg bg-brand py-3 text-lg font-semibold text-white">
           Ir para o login
         </Link>
       </div>
@@ -55,13 +55,18 @@ export default function FormRecuperarSenha() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-        <p className="font-semibold">Sou operador (caixa)</p>
-        <p>Peça a um administrador para redefinir a sua senha em <strong>Usuários → Redefinir senha</strong>.</p>
+      <div className="space-y-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+        <p>
+          <strong>Sou operador (caixa):</strong> peça ao administrador da loja para redefinir a sua senha em{" "}
+          <strong>Usuários → Redefinir senha</strong>.
+        </p>
+        <p>
+          <strong>Sou administrador da loja:</strong> peça ao responsável pela plataforma para redefinir a sua senha.
+        </p>
       </div>
 
       <form onSubmit={enviar} className="space-y-4">
-        <p className="text-sm font-semibold text-gray-800">Sou administrador</p>
+        <p className="text-sm font-semibold text-gray-800">Sou o dono da plataforma</p>
         <div>
           <label htmlFor="r-tel" className={label}>Telefone (com DDD)</label>
           <input
@@ -101,7 +106,7 @@ export default function FormRecuperarSenha() {
         </button>
       </form>
 
-      <Link href="/login" className="block text-center text-sm font-medium text-brand hover:underline">
+      <Link href="/plataforma/login" className="block text-center text-sm font-medium text-brand hover:underline">
         ← Voltar ao login
       </Link>
     </div>

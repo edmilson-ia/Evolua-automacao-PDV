@@ -1,16 +1,18 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getSessao } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { getBranding, getTenantId } from "@/lib/tenant";
+import { getLojaPorSlug } from "@/lib/tenant";
 import { listarCategorias } from "@/lib/categorias";
 import { brl } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const { nome_fantasia } = await getBranding();
-  return { title: `Catálogo — ${nome_fantasia}`, description: `Confira os produtos de ${nome_fantasia}` };
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const loja = await getLojaPorSlug((await params).slug);
+  if (!loja?.ativo) return {};
+  return { title: `Catálogo — ${loja.nome_fantasia}`, description: `Confira os produtos de ${loja.nome_fantasia}` };
 }
 
 type ProdutoPublico = {
@@ -25,22 +27,27 @@ type ProdutoPublico = {
 };
 
 export default async function CatalogoPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{ cat?: string; q?: string }>;
 }) {
+  const { slug } = await params;
   const { cat, q } = await searchParams;
-  const branding = await getBranding();
-  const categorias = await listarCategorias();
-  // Seta "voltar às opções": só para quem trabalha no sistema. O cliente que abre o link público não vê.
+  // A loja vem do endereço público. Loja inexistente ou suspensa = página não encontrada.
+  const branding = await getLojaPorSlug(slug);
+  if (!branding?.ativo) notFound();
+  const categorias = await listarCategorias(branding.id);
+  // Seta "voltar às opções": só para quem trabalha NESTA loja. O cliente que abre o link público não vê.
   const sessao = await getSessao();
-  const voltar = sessao ? { href: sessao.perfil === "admin" ? "/dashboard" : "/pdv", rotulo: sessao.perfil === "admin" ? "Voltar ao painel" : "Voltar ao PDV" } : null;
+  const voltar = sessao && sessao.perfil !== "super_admin" && sessao.tenantId === branding.id ? { href: sessao.perfil === "admin" ? "/dashboard" : "/pdv", rotulo: sessao.perfil === "admin" ? "Voltar ao painel" : "Voltar ao PDV" } : null;
 
   // Somente colunas públicas: nunca expor preço de custo nem estoque exato.
   let query = createServerClient()
     .from("produtos")
     .select("id, nome, descricao, imagem_url, preco_venda, unidade, quantidade, categoria_id")
-    .eq("tenant_id", getTenantId())
+    .eq("tenant_id", branding.id)
     .eq("ativo", true)
     .eq("visivel_catalogo", true)
     .order("nome");

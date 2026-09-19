@@ -43,7 +43,7 @@ async function criarUsuario(nome, telefone, perfil) {
       password: SENHA,
       email_confirm: true,
       user_metadata: { nome, telefone },
-      app_metadata: { perfil },
+      app_metadata: { perfil, tenant_id: TENANT },
     }),
   });
   const j = await r.json();
@@ -55,7 +55,7 @@ async function login(u) {
   const r = await fetch(`${BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identificador: u.telefone, senha: SENHA }),
+    body: JSON.stringify({ loja: "evolua", identificador: u.telefone, senha: SENHA }),
   });
   if (!r.ok) throw new Error(`Login de teste falhou (${r.status})`);
   return r.headers.getSetCookie()[0].split(";")[0];
@@ -174,6 +174,7 @@ async function main() {
   const semOp = await db.rpc("fechar_venda", {
     p_tenant_id: TENANT, p_itens: [{ produto_id: prod.id, quantidade: 1 }], p_forma_pagamento: "dinheiro",
     p_desconto: 0, p_valor_recebido: null, p_operador_id: null, p_operador_nome: null,
+    p_cliente_id: null, p_entrega: false, p_entrega_endereco: null,
   });
   check("fechar_venda sem operador é recusada", semOp.error?.message?.includes("Operador obrigatório") === true, semOp.error?.message);
   check("nada mudou no estoque após a recusa (101)", (await qtdProduto()) === 101);
