@@ -6,14 +6,16 @@ import { CAMPOS, LIMITE_BYTES, LIMITE_LINHAS, type Acao, type ErroLinha, type Ma
 
 type Leitura = { colunas: string[]; amostra: (string | number)[][]; total: number; sugestao: Mapeamento };
 type Previa = {
-  totais: { criar: number; atualizar: number; reativar: number; erros: number };
+  totais: { criar: number; atualizar: number; reativar: number; erros: number; repetidos: number };
+  repetidos: Repetido[];
   categoriasNovas: string[];
   avisos: { semSku: number; semPreco: number };
   erros: ErroLinha[];
   itens: { linha: number; acao: Acao; sku: string; nome: string | null }[];
   totalItens: number;
 };
-type Resultado = { criados: number; atualizados: number; reativados: number; categoriasCriadas: number; erros: ErroLinha[] };
+type Repetido = { linha: number; acao: Acao; sku: string; nome: string | null; motivo: "estoque" | "arquivo"; com: string };
+type Resultado = { criados: number; atualizados: number; reativados: number; pulados: number; categoriasCriadas: number; erros: ErroLinha[] };
 
 const ROTULO_ACAO: Record<Acao, string> = { criar: "Novo", atualizar: "Atualiza", reativar: "Reativa" };
 
@@ -23,10 +25,12 @@ export default function ImportarProdutos() {
   const [mapa, setMapa] = useState<Mapeamento>({});
   const [previa, setPrevia] = useState<Previa | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  // Linhas repetidas que serão PULADAS (todas começam marcadas; desmarcar = importar mesmo assim)
+  const [puladas, setPuladas] = useState<Set<number>>(new Set());
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
 
-  async function chamar<T>(modo: "ler" | "previa" | "confirmar", arq: File, mapeamento?: Mapeamento): Promise<T | null> {
+  async function chamar<T>(modo: "ler" | "previa" | "confirmar", arq: File, mapeamento?: Mapeamento, manter?: number[]): Promise<T | null> {
     setOcupado(true);
     setErro("");
     try {
@@ -34,6 +38,7 @@ export default function ImportarProdutos() {
       form.set("arquivo", arq);
       form.set("modo", modo);
       if (mapeamento) form.set("mapeamento", JSON.stringify(mapeamento));
+      if (manter) form.set("manter", JSON.stringify(manter));
       const r = await fetch("/api/produtos/importar", { method: "POST", body: form });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -70,22 +75,38 @@ export default function ImportarProdutos() {
   async function conferir() {
     if (!arquivo) return;
     const p = await chamar<Previa>("previa", arquivo, mapa);
-    if (p) setPrevia(p);
+    if (p) {
+      setPrevia(p);
+      setPuladas(new Set(p.repetidos.map((r) => r.linha)));
+    }
   }
 
   async function confirmar() {
     if (!arquivo) return;
-    const r = await chamar<Resultado>("confirmar", arquivo, mapa);
+    const manter = (previa?.repetidos ?? []).map((r) => r.linha).filter((l) => !puladas.has(l));
+    const r = await chamar<Resultado>("confirmar", arquivo, mapa, manter);
     if (r) {
       setResultado(r);
       setPrevia(null);
     }
   }
 
+  function alternarPular(linha: number) {
+    setPuladas((atual) => {
+      const novo = new Set(atual);
+      if (!novo.delete(linha)) novo.add(linha);
+      return novo;
+    });
+  }
+
   function alterarMapa(campo: string, valor: string) {
     setMapa((m) => ({ ...m, [campo]: valor === "" ? null : Number(valor) }));
     setPrevia(null);
   }
+
+  const puladasDe = (acao: Acao) => previa?.repetidos.filter((r) => r.acao === acao && puladas.has(r.linha)).length ?? 0;
+  // Quantos entram de fato: tudo que é válido, menos os repetidos marcados para pular
+  const aImportar = previa ? previa.totalItens + previa.repetidos.filter((r) => !puladas.has(r.linha)).length : 0;
 
   return (
     <div className="space-y-5">
@@ -160,9 +181,9 @@ export default function ImportarProdutos() {
         <section className="rounded-lg border border-gray-200 p-4">
           <h2 className="mb-3 font-semibold">3. Prévia — nada foi gravado ainda</h2>
           <div className="mb-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
-            <Numero valor={previa.totais.criar} rotulo="novos" />
+            <Numero valor={previa.totais.criar - puladasDe("criar")} rotulo="novos" />
             <Numero valor={previa.totais.atualizar} rotulo="atualizados" />
-            <Numero valor={previa.totais.reativar} rotulo="reativados" />
+            <Numero valor={previa.totais.reativar - puladasDe("reativar")} rotulo="reativados" />
             <Numero valor={previa.totais.erros} rotulo="com erro" vermelho={previa.totais.erros > 0} />
           </div>
           {previa.categoriasNovas.length > 0 && (
@@ -174,6 +195,35 @@ export default function ImportarProdutos() {
             <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               {previa.avisos.semSku > 0 && <p>{previa.avisos.semSku} linhas sem SKU receberão um código automático (AUTO-…).</p>}
               {previa.avisos.semPreco > 0 && <p>{previa.avisos.semPreco} produtos novos ficarão com preço de venda R$ 0,00 — ajuste depois no estoque.</p>}
+            </div>
+          )}
+          {previa.repetidos.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-1 text-sm font-medium text-amber-900">
+                Produtos repetidos ({previa.totais.repetidos}) — já existem ou aparecem antes na planilha. Marcados = serão pulados.
+              </p>
+              <div className="max-h-64 overflow-auto rounded-lg border border-amber-300 bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-amber-50 text-left">
+                    <tr><th className="p-2">Pular</th><th className="p-2">Linha</th><th className="p-2">Nome</th><th className="p-2">Igual a</th></tr>
+                  </thead>
+                  <tbody>
+                    {previa.repetidos.map((r) => (
+                      <tr key={r.linha} className="border-t border-amber-100">
+                        <td className="p-2">
+                          <input type="checkbox" aria-label={`Pular a linha ${r.linha}`} checked={puladas.has(r.linha)} onChange={() => alternarPular(r.linha)} />
+                        </td>
+                        <td className="p-2">{r.linha}</td>
+                        <td className="p-2">{r.nome ?? r.sku}</td>
+                        <td className="p-2">{r.motivo === "estoque" ? `No estoque: ${r.com}` : `Na ${r.com}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {previa.totais.repetidos > previa.repetidos.length && (
+                <p className="mt-1 text-xs text-gray-500">Mostrando os primeiros {previa.repetidos.length}. Os demais repetidos também serão pulados.</p>
+              )}
             </div>
           )}
           {previa.erros.length > 0 && <TabelaErros erros={previa.erros} titulo="Linhas com problema (serão ignoradas)" />}
@@ -201,10 +251,10 @@ export default function ImportarProdutos() {
           )}
           <button
             onClick={confirmar}
-            disabled={previa.totalItens === 0 || ocupado}
+            disabled={aImportar === 0 || ocupado}
             className="mt-4 rounded-lg bg-brand px-4 py-2 font-medium text-white disabled:opacity-50"
           >
-            Confirmar importação de {previa.totalItens} {previa.totalItens === 1 ? "produto" : "produtos"}
+            Confirmar importação de {aImportar} {aImportar === 1 ? "produto" : "produtos"}
           </button>
         </section>
       )}
@@ -215,6 +265,7 @@ export default function ImportarProdutos() {
           <h2 className="mb-2 font-semibold text-green-900">Importação concluída</h2>
           <p className="text-sm text-green-900">
             {resultado.criados} criados · {resultado.atualizados} atualizados · {resultado.reativados} reativados
+            {resultado.pulados > 0 ? ` · ${resultado.pulados} repetidos pulados` : ""}
             {resultado.categoriasCriadas > 0 ? ` · ${resultado.categoriasCriadas} categorias novas` : ""}
           </p>
           {resultado.erros.length > 0 && (

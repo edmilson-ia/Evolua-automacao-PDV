@@ -2,6 +2,7 @@ import Link from "next/link";
 import { exigirPagina } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { brl } from "@/lib/format";
+import { gruposRepetidos } from "@/lib/repetidos";
 import type { Produto } from "@/types/produto";
 import ExcluirProdutoButton from "@/components/estoque/ExcluirProdutoButton";
 
@@ -23,6 +24,7 @@ export default async function EstoquePage({
   if (q) query = query.or(`nome.ilike.%${q}%,sku.ilike.%${q}%`);
   const { data } = await query;
   const produtos = (data ?? []) as Produto[];
+  const grupos = await gruposRepetidos(createServerClient(), sessao.tenantId);
   const baixos = produtos.filter((p) => p.quantidade <= p.estoque_minimo);
 
   return (
@@ -45,6 +47,16 @@ export default async function EstoquePage({
       {baixos.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <strong>Estoque baixo:</strong> {baixos.map((p) => p.nome).join(", ")}
+        </div>
+      )}
+
+      {grupos.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <span>
+            <strong>{grupos.reduce((n, g) => n + g.length, 0)} produtos repetidos</strong> em {grupos.length}{" "}
+            {grupos.length === 1 ? "grupo" : "grupos"} (mesmo nome).
+          </span>
+          <Link href="/estoque/repetidos" className="rounded-lg bg-amber-600 px-3 py-1 font-medium text-white">Revisar e excluir</Link>
         </div>
       )}
 

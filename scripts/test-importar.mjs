@@ -128,8 +128,8 @@ async function principal() {
 
   console.log("\n--- Rodar de novo (idempotência) ---");
   const de_novo = (await enviar(cA, csv, "confirmar", MAPA_TUDO)).j;
-  check("2ª importação: só a linha SEM SKU cria outro (AUTO-000002); o resto atualiza", de_novo?.criados === 1 && de_novo?.atualizados === validos.length - 1 && de_novo?.reativados === 0, JSON.stringify(de_novo)?.slice(0, 150));
-  check("2ª importação: nada duplicado além da linha sem SKU; categorias e movimentos iguais", (await cont("produtos", A.id)) === validos.length + 1 && (await cont("categorias", A.id)) === 3 && (await cont("movimentos_estoque", A.id)) === esperadoMov);
+  check("2ª importação: a linha SEM SKU (mesmo nome de um produto que já existe) é pulada como repetida; o resto atualiza", de_novo?.criados === 0 && de_novo?.pulados === 1 && de_novo?.atualizados === validos.length - 1 && de_novo?.reativados === 0, JSON.stringify(de_novo)?.slice(0, 150));
+  check("2ª importação: nada duplicado; categorias e movimentos iguais", (await cont("produtos", A.id)) === validos.length && (await cont("categorias", A.id)) === 3 && (await cont("movimentos_estoque", A.id)) === esperadoMov);
 
   console.log("\n--- Atualização só dos campos mapeados ---");
   const parcial = Buffer.from(`codigo;produto;valor\r\n${sku(3)};TESTE Renomeado;99,90\r\n`);
@@ -139,6 +139,52 @@ async function principal() {
   const n3b = await linhaDoBanco(3);
   check("atualiza nome e preço de venda", rp?.atualizados === 1 && n3b.nome === "TESTE Renomeado" && Number(n3b.preco_venda) === 99.9, JSON.stringify(rp));
   check("NÃO mexe no que não foi mapeado (custo, estoque, mínimo, categoria)", Number(n3b.preco_custo) === 5 && Number(n3b.quantidade) === 3 && Number(n3b.estoque_minimo) === 2 && n3b.categoria_id === n3.categoria_id);
+
+  console.log("\n--- Produtos repetidos ---");
+  const dup = Buffer.from(
+    `sku;nome;preco_venda\r\n${sku(970)};TESTE Dup Coca-Cola 2L;9\r\n${sku(971)};teste  dup coca cola 2l;9\r\n` +
+      `${sku(972)};TESTE RENOMEADO;9\r\n${sku(973)};TESTE Produto da B;9\r\n`,
+  );
+  const mDup = { sku: 0, nome: 1, preco_venda: 2 };
+  const pd = (await enviar(cA, dup, "previa", mDup)).j;
+  check("prévia marca 2 repetidos: 1 igual ao arquivo (acento/pontuação/espaço não contam) e 1 igual ao estoque",
+    pd?.repetidos?.length === 2 && pd.repetidos[0].linha === 3 && pd.repetidos[0].motivo === "arquivo" && /linha 2/.test(pd.repetidos[0].com) &&
+      pd.repetidos[1].linha === 4 && pd.repetidos[1].motivo === "estoque" && pd.repetidos[1].com.includes(sku(3)), JSON.stringify(pd?.repetidos));
+  check("nome igual ao de produto de OUTRA loja (B) NÃO conta como repetido; repetidos fora de totalItens", pd?.totalItens === 2 && pd?.totais?.repetidos === 2, JSON.stringify(pd?.totais));
+  const antesDup = await cont("produtos", A.id);
+  const c1 = (await enviar(cA, dup, "confirmar", mDup)).j;
+  check("confirmar sem escolher nada PULA os repetidos (padrão seguro)", c1?.criados === 2 && c1?.pulados === 2 && (await cont("produtos", A.id)) === antesDup + 2, JSON.stringify(c1));
+  const existe = async (n) => (await db.from("produtos").select("id").eq("tenant_id", A.id).eq("sku", sku(n)).maybeSingle()).data?.id ?? null;
+  check("só entraram as linhas não repetidas (970 e 973)", !!(await existe(970)) && !!(await existe(973)) && !(await existe(971)) && !(await existe(972)));
+  const form2 = new FormData();
+  form2.set("arquivo", new File([dup], "dup.csv"));
+  form2.set("modo", "confirmar");
+  form2.set("mapeamento", JSON.stringify(mDup));
+  form2.set("manter", JSON.stringify([3]));
+  const r2 = await chamar(cA, "/api/produtos/importar", { method: "POST", body: form2 });
+  const c2 = await json(r2);
+  check("escolhendo 'importar mesmo assim' a linha 3, ela entra e as outras repetidas seguem puladas", c2?.criados === 1 && c2?.pulados === 1 && !!(await existe(971)) && !(await existe(972)), JSON.stringify(c2));
+  const formRuim = new FormData();
+  formRuim.set("arquivo", new File([dup], "dup.csv"));
+  formRuim.set("modo", "confirmar");
+  formRuim.set("mapeamento", JSON.stringify(mDup));
+  formRuim.set("manter", "isso não é lista");
+  check("lista 'manter' inválida é recusada (400)", (await chamar(cA, "/api/produtos/importar", { method: "POST", body: formRuim })).status === 400);
+
+  const html = async (cookie, caminho) => {
+    const r = await chamar(cookie, caminho);
+    return { status: r.status, txt: r.status === 200 ? await r.text() : "" };
+  };
+  const est = await html(cA, "/estoque");
+  check("Estoque mostra o aviso de produtos repetidos com o botão Revisar", est.status === 200 && /produtos repetidos/.test(est.txt) && /Revisar e excluir/.test(est.txt));
+  const rev = await html(cA, "/estoque/repetidos");
+  check("/estoque/repetidos lista os 2 iguais com botão Excluir", rev.status === 200 && rev.txt.includes(sku(970)) && rev.txt.includes(sku(971)) && /Excluir/.test(rev.txt));
+  const revB = await html(cB, "/estoque/repetidos");
+  check("a loja B não vê os repetidos da loja A", revB.status === 200 && !revB.txt.includes(sku(970)) && /Nenhum produto repetido/.test(revB.txt));
+  check("operador não acessa /estoque/repetidos (redireciona)", (await html(cOp, "/estoque/repetidos")).status !== 200);
+  const excl = await chamar(cA, `/api/produtos/${await existe(971)}`, { method: "DELETE" });
+  const rev2 = await html(cA, "/estoque/repetidos");
+  check("excluir um dos iguais resolve o grupo (lista fica limpa)", excl.status === 204 && /Nenhum produto repetido/.test(rev2.txt) && !/produtos repetidos/.test((await html(cA, "/estoque")).txt));
 
   console.log("\n--- Sem nenhuma obrigação ---");
   const semSku = Buffer.from("nome;preco\r\nTESTE Sem SKU;5,00\r\n");

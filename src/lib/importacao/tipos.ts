@@ -48,6 +48,8 @@ export type LinhaPlano = {
   produtoId: string | null;
   quantidadeAtual: number | null;
   categoriaNova: boolean;
+  /** Nome igual a outro produto: já existe no estoque ou aparece antes no arquivo. */
+  repetido: { motivo: "estoque" | "arquivo"; com: string } | null;
 };
 
 export type ErroLinha = { linha: number; sku: string; erro: string };
@@ -57,5 +59,5 @@ export type Plano = {
   erros: ErroLinha[];
   categoriasNovas: string[];
   avisos: { semSku: number; semPreco: number };
-  totais: { criar: number; atualizar: number; reativar: number; erros: number };
+  totais: { criar: number; atualizar: number; reativar: number; erros: number; repetidos: number };
 };

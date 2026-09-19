@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { chaveNome } from "@/lib/nome";
+import { produtosAtivos } from "@/lib/repetidos";
 import type { ErroLinha, LinhaPlano, LinhaValidada, Plano } from "./tipos";
 
 type Existente = { id: string; sku: string; ativo: boolean; quantidade: number };
@@ -50,6 +52,13 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
     proximoAuto = Number(ultimo?.[0]?.sku.slice(5)) || 0;
   }
 
+  // Nomes que já existem (produtos ativos) e nomes já vistos neste arquivo, para marcar os repetidos
+  const ativosPorNome = new Map<string, { id: string; nome: string; sku: string }>();
+  for (const p of await produtosAtivos<{ id: string; nome: string; sku: string }>(db, tenantId, "id, nome, sku")) {
+    if (!ativosPorNome.has(chaveNome(p.nome))) ativosPorNome.set(chaveNome(p.nome), p);
+  }
+  const vistosNoArquivo = new Map<string, number>();
+
   let semPreco = 0;
   const itens: LinhaPlano[] = [];
   for (const v of boas) {
@@ -66,9 +75,21 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
     const cat = v.dados.categoria;
     const categoriaNova = !!cat && !categoriasDaLoja.has(cat.toLowerCase());
     if (categoriaNova && cat) novas.set(cat.toLowerCase(), cat);
+    const acao = !ex ? "criar" : ex.ativo ? "atualizar" : "reativar";
+    let repetido: LinhaPlano["repetido"] = null;
+    if (v.dados.nome) {
+      const chave = chaveNome(v.dados.nome);
+      const noEstoque = ativosPorNome.get(chave);
+      if (acao !== "atualizar") {
+        if (noEstoque && noEstoque.id !== ex?.id) repetido = { motivo: "estoque", com: `${noEstoque.nome.trim()} (SKU ${noEstoque.sku})` };
+        else if (vistosNoArquivo.has(chave)) repetido = { motivo: "arquivo", com: `linha ${vistosNoArquivo.get(chave)}` };
+      }
+      if (!vistosNoArquivo.has(chave)) vistosNoArquivo.set(chave, v.linha);
+    }
     itens.push({
       linha: v.linha,
-      acao: !ex ? "criar" : ex.ativo ? "atualizar" : "reativar",
+      acao,
+      repetido,
       dados: v.dados,
       produtoId: ex?.id ?? null,
       quantidadeAtual: ex ? ex.quantidade : null,
@@ -83,6 +104,26 @@ export async function planejar(db: SupabaseClient, tenantId: string, validadas: 
     erros,
     categoriasNovas: [...novas.values()],
     avisos: { semSku: semSku.length, semPreco },
-    totais: { criar: conta("criar"), atualizar: conta("atualizar"), reativar: conta("reativar"), erros: erros.length },
+    totais: { criar: conta("criar"), atualizar: conta("atualizar"), reativar: conta("reativar"), erros: erros.length, repetidos: itens.filter((i) => i.repetido).length },
+  };
+}
+
+/**
+ * Tira do plano as linhas repetidas, exceto as que o usuário pediu para importar mesmo assim (`manter`).
+ * Sem a lista, o padrão é PULAR todas: quem não escolheu nada nunca cria produto duplicado sem querer.
+ */
+export function descartarRepetidos(plano: Plano, manter: Set<number>): { plano: Plano; pulados: number } {
+  const itens = plano.itens.filter((i) => !i.repetido || manter.has(i.linha));
+  const novas = new Map<string, string>();
+  for (const i of itens) if (i.categoriaNova && i.dados.categoria) novas.set(i.dados.categoria.toLowerCase(), i.dados.categoria);
+  const conta = (acao: LinhaPlano["acao"]) => itens.filter((i) => i.acao === acao).length;
+  return {
+    pulados: plano.itens.length - itens.length,
+    plano: {
+      ...plano,
+      itens,
+      categoriasNovas: [...novas.values()],
+      totais: { ...plano.totais, criar: conta("criar"), atualizar: conta("atualizar"), reativar: conta("reativar"), repetidos: itens.filter((i) => i.repetido).length },
+    },
   };
 }
