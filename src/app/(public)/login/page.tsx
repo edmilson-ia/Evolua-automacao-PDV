@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -24,6 +25,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <CartaoAuth branding={BRANDING_PADRAO} titulo="Qual é a sua loja?" subtitulo="PDV e controle de estoque">
       <FormCodigoLoja />
+      <p className="mt-5 text-center text-xs text-gray-500">
+        Gerencia várias lojas?{" "}
+        <Link href="/plataforma/login" className="font-medium text-brand hover:underline">
+          Sou o dono da plataforma
+        </Link>
+      </p>
     </CartaoAuth>
   );
 }

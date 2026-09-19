@@ -2,6 +2,7 @@ import Link from "next/link";
 import InstallPwaButton from "@/components/pwa/InstallPwaButton";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { exigirPagina } from "@/lib/auth";
+import { mostraAtalhoDoDono } from "@/lib/donoPlataforma";
 import FaixaTeste from "@/components/teste/FaixaTeste";
 import { getBranding, getTeste } from "@/lib/tenant";
 import type { PerfilLoja } from "@/lib/session";
@@ -36,7 +37,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             )}
             {b.nome_fantasia}
           </span>
-          {links(b.slug).filter((l) => l.perfis.includes(sessao.perfil)).map((l) => (
+          {links(b.slug)
+            .filter((l) => l.perfis.includes(sessao.perfil))
+            .concat(mostraAtalhoDoDono(b.slug, sessao.perfil) ? [{ href: "/plataforma/login", label: "Plataforma", perfis: ["admin"] }] : [])
+            .map((l) => (
             <Link key={l.href} href={l.href} className="shrink-0 whitespace-nowrap py-2 text-sm font-medium text-gray-700 hover:text-brand">
               {l.label}
             </Link>
