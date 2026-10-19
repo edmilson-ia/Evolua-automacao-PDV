@@ -1,5 +1,7 @@
 # Evolua Automação PDV
 
+Em resumo: sistema de frente de caixa (PDV) com estoque e catálogo, que cada loja usa com a própria marca (white-label). Atende várias lojas na mesma instalação e instala no celular como app (PWA). Aceita Dinheiro, Débito, Crédito e Pix com QR Code, e tem controle de caixa com abertura, sangria e fechamento.
+
 Sistema de **PDV (frente de caixa) + estoque + catálogo**, **white-label** (cada loja coloca a própria marca), **várias lojas na mesma instalação** e instalável como **app no celular (PWA)**.
 
 Stack: **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind CSS 4 · **Supabase** (Postgres, Auth e Storage).
